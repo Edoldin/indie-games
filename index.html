@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0d1b2a" />
+  <title>Código Secreto</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="home-page">
+    <div class="home-logo">
+      <span class="spy-icon">🕵️</span>
+      <h1>CÓDIGO<br><span class="accent">SECRETO</span></h1>
+      <p class="tagline">Codenames · Online Multiplayer</p>
+    </div>
+
+    <!-- Sign-in (shown when logged out) -->
+    <div id="signin-section" class="signin-card hidden">
+      <p>Sign in to create or join a game room with friends.</p>
+      <button class="btn btn-google btn-full" id="signin-btn">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+        Sign in with Google
+      </button>
+      <p id="signin-error" class="error-msg"></p>
+    </div>
+
+    <!-- Play section (shown when logged in) -->
+    <div id="play-section" class="play-section hidden">
+      <div class="user-greeting">
+        <img id="user-photo" src="" alt="avatar" />
+        <span>Welcome, <strong id="user-name"></strong></span>
+        <button class="btn btn-ghost btn-sm" id="signout-btn" style="margin-left:auto">Sign out</button>
+      </div>
+
+      <!-- Create game -->
+      <div class="play-card">
+        <h3>Create a Room</h3>
+        <div class="lang-row">
+          <label for="create-lang">Language</label>
+          <select id="create-lang" class="select">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div class="lang-row">
+          <label for="create-timer">Turn timer</label>
+          <select id="create-timer" class="select">
+            <option value="0">Off</option>
+            <option value="60">60 s</option>
+            <option value="90" selected>90 s</option>
+            <option value="120">120 s</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-full" id="create-btn">Create Room</button>
+        <p id="create-error" class="error-msg"></p>
+      </div>
+
+      <!-- Join game -->
+      <div class="play-card">
+        <h3>Join a Room</h3>
+        <input
+          type="text"
+          id="join-code"
+          class="input"
+          placeholder="Enter 4-letter code"
+          maxlength="4"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+        />
+        <button class="btn btn-ghost btn-full" id="join-btn">Join Room</button>
+        <p id="join-error" class="error-msg"></p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="home-loading" class="loading-overlay hidden">
+      <div class="big-spinner"></div>
+      <p id="home-loading-msg">Loading…</p>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- App scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="wordlists.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": "auth != null",
+
+        "meta": {
+          ".write": "auth != null"
+        },
+
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+
+        "board": {
+          ".write": "auth != null"
+        },
+
+        "clue": {
+          ".write": "auth != null"
+        },
+
+        "scores": {
+          ".write": "auth != null"
+        },
+
+        "pendingGuess": {
+          ".write": "auth != null"
+        },
+
+        "clueHistory": {
+          ".write": "auth != null"
+        },
+
+        "private": {
+          "keyCard": {
+            ".read": "auth != null && root.child('rooms').child($roomCode).child('players').child(auth.uid).child('role').val() === 'spymaster'",
+            ".write": "auth != null && root.child('rooms').child($roomCode).child('meta').child('hostUid').val() === auth.uid"
+          }
+        }
+      }
+    }
+  }
+}
