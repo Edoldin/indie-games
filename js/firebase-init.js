@@ -4,6 +4,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyBWogAby54M1QuZ51X_YUnQ19X49rxJHUo",
     authDomain: "indie-games-fdf3b.firebaseapp.com",
+    databaseURL: "https://indie-games-fdf3b-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "indie-games-fdf3b",
     storageBucket: "indie-games-fdf3b.firebasestorage.app",
     messagingSenderId: "275081049912",
