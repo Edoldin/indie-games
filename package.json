@@ -1,0 +1,12 @@
+{
+  "name": "indie-games",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test":      "node --test tests/utils.test.js tests/ui.test.js",
+    "translate": "node scripts/translate.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  }
+}

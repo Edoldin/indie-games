@@ -16,6 +16,9 @@
    so only one spymaster processes each guess.
    ===================================================== */
 
+// Wrapped in an IIFE so private variables don't clash with lobby.js globals.
+(function () {
+
 // ── Module state (reset in init) ─────────────────────────
 let _roomCode, _myUid, _isHost;
 let _myRole   = null;
@@ -575,3 +578,5 @@ onAuthReady(async user => {
   await ensureInRoom(roomCode);
   initLobby(roomCode, window.GAME);
 });
+
+})(); // end IIFE
