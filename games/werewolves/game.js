@@ -67,7 +67,8 @@ function _actingUid() { return _isTableside ? _tsActiveUid : _myUid; }
 // ── GAME interface ────────────────────────────────────────
 
 window.GAME = {
-  name: 'Werewolves',
+  name:      'Werewolves',
+  lobbyMode: 'freeform',   // tells lobby.js to use Player / Narrator join buttons
 
   renderSettings(meta) {
     const s  = meta.settings || {};
@@ -116,8 +117,8 @@ window.GAME = {
       if (names.length > 12) return { valid: false, hint: `Max 12 players (${names.length} entered).` };
       return { valid: true, hint: `${names.length} players · tableside mode ready!` };
     }
-    const n = Object.keys(players).length;
-    if (n < 4) return { valid: false, hint: `Need at least 4 players (${n} joined).` };
+    const n = Object.values(players).filter(p => p.team === 'player').length;
+    if (n < 4) return { valid: false, hint: `Need at least 4 players (${n} joined as player).` };
     return { valid: true, hint: `${n} players — ready!` };
   },
 
@@ -132,7 +133,8 @@ window.GAME = {
       // These entries will be written into players/ by the returned update.
       // Firebase rules allow the host to write any player slot in their room.
     } else {
-      uids = Object.keys(players);
+      // Only players who joined as 'player' get roles; narrators are observers
+      uids = Object.keys(players).filter(uid => players[uid]?.team === 'player');
     }
 
     const n        = uids.length;
@@ -273,6 +275,10 @@ async function _loadMyRole() {
     // GM: load all roles, set special myRole
     await _loadAllRoles();
     _myRole = 'gm';
+  } else if (_players[_myUid]?.team === 'narrator') {
+    // Narrator: loads all roles to facilitate the game, doesn't receive one
+    await _loadAllRoles();
+    _myRole = 'narrator';
   } else {
     const snap = await db.ref(`rooms/${_roomCode}/private/roles/${_myUid}`).once('value');
     _myRole = snap.val() || 'villager';
@@ -625,17 +631,20 @@ function _renderPlayerList() {
   const el = $('ww-player-list');
   if (!el) return;
   el.innerHTML = Object.entries(_players).map(([uid, p]) => {
-    const alive  = !!_alive[uid];
+    const isNarrator = p.team === 'narrator';
+    const alive  = isNarrator ? true : !!_alive[uid];
     const isMe   = !_isTableside && uid === _myUid;
-    const isWolf = (_myRole === 'werewolf' || _myRole === 'gm') && _allRoles[uid] === 'werewolf';
+    const canSeeRoles = _myRole === 'werewolf' || _myRole === 'gm' || _myRole === 'narrator';
+    const isWolf = canSeeRoles && !isNarrator && _allRoles[uid] === 'werewolf' && uid !== _myUid;
     return `
-      <div class="ww-player${alive ? '' : ' ww-dead'}${isMe ? ' ww-me' : ''}${isWolf && uid !== _myUid ? ' ww-is-wolf' : ''}">
+      <div class="ww-player${alive ? '' : ' ww-dead'}${isMe ? ' ww-me' : ''}${isWolf ? ' ww-is-wolf' : ''}">
         <img src="${esc(p.photoURL||'')}" alt="" class="ww-avatar" />
         <span class="ww-pname">${esc(p.name||'Player')}</span>
-        ${isMe  ? `<span class="ww-role-badge">${ROLE_ICON[_myRole]||''} ${esc(ROLE_NAME[_myRole]||'')}</span>` : ''}
-        ${isWolf && uid !== _myUid ? `<span class="ww-role-badge" style="color:var(--red)">🐺 Wolf</span>` : ''}
-        ${!alive ? '<span class="ww-dead-mark">💀</span>' : ''}
-        ${isMe  ? '<span class="ww-you">(you)</span>' : ''}
+        ${isNarrator ? `<span class="ww-role-badge">📖 Narrator</span>` : ''}
+        ${isMe && !isNarrator ? `<span class="ww-role-badge">${ROLE_ICON[_myRole]||''} ${esc(ROLE_NAME[_myRole]||'')}</span>` : ''}
+        ${isWolf ? `<span class="ww-role-badge" style="color:var(--red)">🐺 Wolf</span>` : ''}
+        ${!alive && !isNarrator ? '<span class="ww-dead-mark">💀</span>' : ''}
+        ${isMe ? '<span class="ww-you">(you)</span>' : ''}
       </div>`;
   }).join('');
 }
@@ -644,6 +653,12 @@ function _renderActionPanel() {
   const el = $('ww-action-panel');
   if (!el) return;
   const phase = _meta.phase, np = _meta.nightPhase, dp = _meta.dayPhase;
+
+  if (_myRole === 'narrator') {
+    el.innerHTML = _panelNarrator();
+    _bindActions(el);
+    return;
+  }
 
   if (_isTableside) {
     if (_tsCover || !_tsActiveUid) {
@@ -766,6 +781,42 @@ function _panelTablesideCover() {
 }
 
 // ── Panel builders ────────────────────────────────────────
+
+function _panelNarrator() {
+  const phase = _meta.phase, np = _meta.nightPhase, dp = _meta.dayPhase;
+  const round = _meta.round || 1;
+
+  // Role summary (shown to narrator at all times)
+  const roleSummary = Object.entries(_allRoles).map(([uid, role]) => {
+    const p = _players[uid];
+    const alive = !!_alive[uid];
+    return `<span style="font-size:12px;opacity:${alive?1:0.45}">${ROLE_ICON[role]||'?'} ${esc(p?.name||uid)}${alive?'':'💀'}</span>`;
+  }).join('  ');
+
+  if (phase === 'night') {
+    const wolfVotes = Object.entries(_nightVotes)
+      .map(([uid, tgt]) => `${esc(_players[uid]?.name||uid)} → ${esc(_players[tgt]?.name||'?')}`)
+      .join(', ');
+    return `
+      <p class="ww-action-title">Narrator — Night ${round}</p>
+      <p class="ww-action-hint">Phase: <strong>${np || '…'}</strong>${_nightVictim ? ` · Target: <strong style="color:var(--red)">${esc(_players[_nightVictim]?.name||'?')}</strong>` : ''}</p>
+      ${wolfVotes ? `<p class="ww-action-hint">Wolf votes: ${wolfVotes}</p>` : ''}
+      <div class="ww-pack-status" style="flex-wrap:wrap;gap:8px">${roleSummary}</div>
+    `;
+  }
+
+  // Day phase: show the dawn announcement then the discuss/vote panels
+  if (phase === 'day') {
+    const dayPanel = dp === 'vote' ? '' : _panelDiscuss();
+    return `
+      <p class="ww-action-title">Narrator — Day ${round}</p>
+      <div class="ww-pack-status" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">${roleSummary}</div>
+      ${dayPanel}
+    `;
+  }
+
+  return `<p class="ww-action-title">Narrator — Round ${round}</p><div class="ww-pack-status">${roleSummary}</div>`;
+}
 
 function _panelSleep(msg) {
   return `<div class="ww-sleep-screen"><span class="ww-sleep-icon">🌙</span><p>${esc(msg)}</p></div>`;
@@ -1023,7 +1074,8 @@ function _renderFinished() {
 // ── Stats ─────────────────────────────────────────────────
 
 function _writeStats(meta) {
-  if (_isTableside) return; // no per-user stats for shared-device games
+  if (_isTableside) return;
+  if (_myRole === 'narrator') return;
   if (_statsWritten) return;
   if (!meta.winner || !_myRole) return;
   _statsWritten = true;

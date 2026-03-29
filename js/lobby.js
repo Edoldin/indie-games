@@ -63,6 +63,14 @@ function _renderLobby() {
 }
 
 function _buildLobbyHTML() {
+  const { valid, hint } = _game.lobbyValid(_players, _meta);
+  const settingsHtml    = _isHost ? (_game.renderSettings(_meta) || '') : '';
+  const hasSettings     = settingsHtml.trim() !== '';
+
+  if (_game.lobbyMode === 'freeform') {
+    return _buildFreeformLobbyHTML(valid, hint, settingsHtml, hasSettings);
+  }
+
   const me      = _players[_myUid] || {};
   const entries = Object.entries(_players);
 
@@ -71,10 +79,6 @@ function _buildLobbyHTML() {
   const redOps  = entries.filter(([,p]) => p.team === 'red'  && p.role !== 'spymaster');
   const blueOps = entries.filter(([,p]) => p.team === 'blue' && p.role !== 'spymaster');
   const unassigned = entries.filter(([,p]) => !p.team);
-
-  const { valid, hint } = _game.lobbyValid(_players, _meta);
-  const settingsHtml    = _isHost ? (_game.renderSettings(_meta) || '') : '';
-  const hasSettings     = settingsHtml.trim() !== '';
 
   const chipFor = ([uid, p]) => `<div class="player-chip">${playerChip(p, uid === _myUid)}</div>`;
 
@@ -159,12 +163,82 @@ function _buildLobbyHTML() {
   </div>`;
 }
 
+function _buildFreeformLobbyHTML(valid, hint, settingsHtml, hasSettings) {
+  const me       = _players[_myUid] || {};
+  const entries  = Object.entries(_players);
+  const players  = entries.filter(([,p]) => p.team === 'player');
+  const narrator = entries.find(([,p])   => p.team === 'narrator');
+  const pending  = entries.filter(([,p]) => !p.team);
+
+  const chipFor = ([uid, p]) => `<div class="player-chip">${playerChip(p, uid === _myUid)}</div>`;
+  const myTeam  = me.team;
+
+  return `
+  <div class="lobby-body">
+    <div class="share-row">
+      <p>Share the room code with your friends.</p>
+      <button id="share-btn" class="btn btn-ghost btn-sm">Share 🔗</button>
+    </div>
+
+    <div class="freeform-sections">
+      <div class="freeform-section">
+        <h4>🎮 Players (${players.length})</h4>
+        <div class="freeform-chips">
+          ${players.map(chipFor).join('') || '<span class="freeform-empty">None yet</span>'}
+        </div>
+      </div>
+
+      <div class="freeform-section">
+        <h4>📖 Narrator</h4>
+        <div class="freeform-chips">
+          ${narrator
+            ? chipFor(narrator)
+            : '<span class="freeform-empty">Optional — knows all roles, doesn\'t play</span>'}
+        </div>
+      </div>
+
+      ${pending.length ? `
+      <div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Not joined yet</p>
+        <div class="freeform-chips">${pending.map(chipFor).join('')}</div>
+      </div>` : ''}
+    </div>
+
+    <div class="lobby-actions">
+      <div class="join-row">
+        <button id="join-player-btn" class="btn ${myTeam === 'player' ? 'btn-primary' : 'btn-ghost'}">
+          ${myTeam === 'player' ? '✓ Playing' : 'Join as Player'}
+        </button>
+        <button id="join-narrator-btn" class="btn ${myTeam === 'narrator' ? 'btn-secondary' : 'btn-ghost'}">
+          ${myTeam === 'narrator' ? '✓ Narrator' : 'Join as Narrator'}
+        </button>
+      </div>
+
+      ${hasSettings ? `
+      <div id="game-settings-slot" class="settings-row">
+        <span>⚙️</span>${settingsHtml}
+      </div>` : ''}
+
+      ${_isHost ? `
+      <div class="start-area">
+        <button id="start-btn" class="btn btn-primary btn-full" ${valid ? '' : 'disabled'}>
+          Start Game
+        </button>
+        <p class="start-hint">${esc(hint)}</p>
+      </div>` : `
+      <p class="start-hint">Waiting for the host to start…</p>`}
+    </div>
+  </div>`;
+}
+
 function _bindLobbyEvents() {
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
 
-  on('share-btn',    'click', _shareRoom);
-  on('join-red-btn', 'click', () => _joinTeam('red'));
-  on('join-blue-btn','click', () => _joinTeam('blue'));
+  on('share-btn',         'click', _shareRoom);
+  on('join-red-btn',      'click', () => _joinTeam('red'));
+  on('join-blue-btn',     'click', () => _joinTeam('blue'));
+  on('join-player-btn',   'click', () => _joinFreeform('player'));
+  on('join-narrator-btn', 'click', () => _joinFreeform('narrator'));
 
   on('spy-toggle', 'change', async e => {
     const newRole = e.target.checked ? 'spymaster' : 'operative';
@@ -193,6 +267,10 @@ function _bindLobbyEvents() {
 
 async function _joinTeam(team) {
   await db.ref(`rooms/${_roomCode}/players/${_myUid}`).update({ team, role: 'operative' });
+}
+
+async function _joinFreeform(type) {
+  await db.ref(`rooms/${_roomCode}/players/${_myUid}`).update({ team: type, role: type });
 }
 
 async function _startGame() {
@@ -245,9 +323,13 @@ async function _playAgain() {
   updates['meta/winReason']   = null;
   updates['meta/currentTurn'] = null;
   updates['meta/timerEndsAt'] = null;
-  // Reset all player roles to operative, keep teams
+  // Reset player roles; freeform games keep their team/type
   Object.keys(_players).forEach(uid => {
-    updates[`players/${uid}/role`] = 'operative';
+    if (_game.lobbyMode === 'freeform') {
+      updates[`players/${uid}/role`] = _players[uid]?.team || 'player';
+    } else {
+      updates[`players/${uid}/role`] = 'operative';
+    }
   });
   await db.ref(`rooms/${_roomCode}`).update(updates);
 }
