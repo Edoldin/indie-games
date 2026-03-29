@@ -32,7 +32,8 @@ let _revealed = [];
 let _scores   = { red: 9, blue: 8 };
 let _meta     = {};
 let _clue     = {};
-let _players  = {};          // full players snapshot (for confirmation checks)
+let _players       = {};     // full players snapshot (for confirmation checks)
+let _myParticipates = false; // spymaster opted in to voting
 let _pendingGuess = null;    // { votes:{uid:idx}, confirmations:{uid:true}, claimedBy, startedAt }
 let _timerInterval = null;
 let _statsWritten  = false;
@@ -155,8 +156,9 @@ window.GAME = {
     _isTableside = !!(meta.settings?.tableside);
     const me = players[_myUid];
     if (me) {
-      _myRole = me.role || 'operative';
-      _myTeam = me.team || null;
+      _myRole         = me.role       || 'operative';
+      _myTeam         = me.team       || null;
+      _myParticipates = !!me.participates;
     }
     if (_isTableside) { _myRole = 'gm'; _myTeam = null; }
     if (_myRole === 'spymaster' && meta.status === 'playing' && !_keyCard) {
@@ -165,13 +167,14 @@ window.GAME = {
   },
 
   getResetUpdate() {
-    _keyCard      = null;
-    _words        = [];
-    _revealed     = [];
-    _pendingGuess = null;
-    _players      = {};
-    _statsWritten = false;
-    _isTableside  = false;
+    _keyCard        = null;
+    _words          = [];
+    _revealed       = [];
+    _pendingGuess   = null;
+    _players        = {};
+    _myParticipates = false;
+    _statsWritten   = false;
+    _isTableside    = false;
     return {
       'board':        null,
       'clue':         null,
@@ -278,10 +281,14 @@ function _getTopVotedIdx() {
   return tops.length === 1 ? parseInt(tops[0][0], 10) : null;
 }
 
-// Returns uids of online players on the active team.
+// Returns uids of online players on the active team (incl. participating spymasters).
 function _getActiveTeamPlayers() {
   return Object.entries(_players)
-    .filter(([, p]) => p.team === _meta.currentTurn && p.online !== false)
+    .filter(([, p]) => {
+      if (p.team !== _meta.currentTurn || p.online === false) return false;
+      if (p.role === 'spymaster') return !!p.participates;
+      return true;
+    })
     .map(([uid]) => uid);
 }
 
@@ -379,6 +386,14 @@ function _renderGrid() {
   const topIdx  = _getTopVotedIdx();
   const myVote  = (votes[_myUid] !== undefined) ? votes[_myUid] : null;
 
+  // Collect which cards have a participating spymaster's vote
+  const spyVotedCards = new Set();
+  Object.entries(_players).forEach(([uid, p]) => {
+    if (p.role === 'spymaster' && p.participates && votes[uid] !== undefined) {
+      spyVotedCards.add(votes[uid]);
+    }
+  });
+
   grid.innerHTML = '';
   _words.forEach((word, i) => {
     const div = document.createElement('div');
@@ -401,7 +416,7 @@ function _renderGrid() {
       if (topIdx === i) div.classList.add('top-voted');
       if (counts[i] > 0) {
         const badge = document.createElement('span');
-        badge.className = 'vote-badge';
+        badge.className = spyVotedCards.has(i) ? 'vote-badge spy-vote-badge' : 'vote-badge';
         badge.textContent = counts[i];
         div.appendChild(badge);
       }
@@ -443,12 +458,13 @@ function _renderActions() {
   const topIdx     = _getTopVotedIdx();
   const voteCount  = Object.keys(_pendingGuess?.votes || {}).length;
 
-  const endBtn     = $('end-turn-btn');
-  const clueForm   = $('clue-form');
-  const hint       = $('action-hint');
-  const confirmBtn = $('confirm-guess-btn');
-  const pendingEl  = $('pending-indicator');
-  const bar        = $('turn-bar');
+  const endBtn      = $('end-turn-btn');
+  const clueForm    = $('clue-form');
+  const hint        = $('action-hint');
+  const confirmBtn  = $('confirm-guess-btn');
+  const pendingEl   = $('pending-indicator');
+  const participBtn = $('toggle-participate-btn');
+  const bar         = $('turn-bar');
 
   if (bar) {
     bar.className   = `turn-bar turn-${turn || 'none'}`;
@@ -464,13 +480,21 @@ function _renderActions() {
   clueForm.classList.add('hidden');
   confirmBtn?.classList.add('hidden');
   pendingEl?.classList.add('hidden');
+  participBtn?.classList.add('hidden');
   hint.textContent = '';
 
   const isMyTurn    = _isTableside || (turn === _myTeam && _myTeam !== null);
   const isMyTurnSpy = isMyTurn && (_myRole === 'spymaster' || _isTableside);
 
+  // ── Participate toggle (spymaster only, visible during guess phase) ──
+  if (_myRole === 'spymaster' && hasClue && isMyTurn && participBtn) {
+    participBtn.textContent = _myParticipates ? '👁 Leave voting' : '🗳 Join voting';
+    participBtn.classList.remove('hidden');
+  }
+
   // ── Clue phase ──
   if (!hasClue) {
+    participBtn?.classList.add('hidden'); // hide toggle when no active clue
     if (isMyTurnSpy) {
       clueForm.classList.remove('hidden');
       hint.textContent = `Give a one-word clue for the ${turn?.toUpperCase() || ''} team.`;
@@ -575,7 +599,8 @@ function _canGuess() {
   if (_isTableside) {
     return !!_clue?.word && (_clue.guessesLeft || 0) > 0 && _meta.status === 'playing';
   }
-  return _myRole === 'operative'
+  const canVote = _myRole === 'operative' || (_myRole === 'spymaster' && _myParticipates);
+  return canVote
     && _meta.currentTurn === _myTeam
     && _myTeam !== null
     && !!_clue?.word
@@ -616,13 +641,23 @@ async function _confirmGuess() {
 }
 
 document.addEventListener('click', e => {
-  if (e.target.id === 'end-turn-btn')      _doEndTurn();
-  if (e.target.id === 'submit-clue-btn')   _submitClue();
-  if (e.target.id === 'confirm-guess-btn') _confirmGuess();
+  if (e.target.id === 'end-turn-btn')          _doEndTurn();
+  if (e.target.id === 'submit-clue-btn')        _submitClue();
+  if (e.target.id === 'confirm-guess-btn')      _confirmGuess();
+  if (e.target.id === 'toggle-participate-btn') _toggleParticipation();
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'clue-word') _submitClue();
 });
+
+async function _toggleParticipation() {
+  const newVal = !_myParticipates;
+  await db.ref(`rooms/${_roomCode}/players/${_myUid}/participates`).set(newVal);
+  // Remove vote when opting out
+  if (!newVal && _pendingGuess?.votes?.[_myUid] !== undefined) {
+    await db.ref(`rooms/${_roomCode}/pendingGuess/votes/${_myUid}`).remove().catch(() => {});
+  }
+}
 
 async function _doEndTurn() {
   if (!_isTableside && (!_myTeam || _meta.currentTurn !== _myTeam)) return;

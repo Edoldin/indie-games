@@ -127,6 +127,15 @@
   border-radius: 4px;
 }
 
+/* Participate toggle button (spymaster → voter) */
+.participate-btn {
+  align-self: flex-end;
+  font-size: 11px;
+  padding: 4px 10px;
+  opacity: 0.8;
+}
+.participate-btn:hover { opacity: 1; }
+
 /* Vote badge — top-right corner count bubble */
 .vote-badge {
   position: absolute;
@@ -145,6 +154,12 @@
   line-height: 1;
   padding: 0 2px;
   pointer-events: none;
+}
+
+/* Spy-voted card badge (purple tint — distinct from operative gold) */
+.spy-vote-badge {
+  background: rgba(186, 104, 255, 0.92) !important;
+  color: #fff !important;
 }
 
 /* My current vote — bold white border */
