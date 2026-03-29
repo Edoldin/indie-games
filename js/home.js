@@ -95,45 +95,79 @@ onAuthReady(async user => {
 // ── Auth state renderers ──────────────────────────────────
 
 function _showSignedIn(user, stats) {
+  const name = getDisplayName(user);
+
   // Navbar
-  document.getElementById('nav-auth').innerHTML = `
-    <img src="${esc(user.photoURL || '')}" alt="avatar"
-      style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);object-fit:cover" />
-    <span class="d-none d-sm-inline small fw-semibold">${esc(user.displayName || 'Player')}</span>
-    <button class="btn btn-outline-secondary btn-sm" id="signout-btn">Sign out</button>
-  `;
+  if (user.isAnonymous) {
+    document.getElementById('nav-auth').innerHTML = `
+      <span class="small fw-semibold">${esc(name)}</span>
+      <button class="btn btn-outline-secondary btn-sm" id="signout-btn">Change name</button>
+    `;
+  } else {
+    document.getElementById('nav-auth').innerHTML = `
+      <img src="${esc(user.photoURL || '')}" alt="avatar"
+        style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);object-fit:cover" />
+      <span class="d-none d-sm-inline small fw-semibold">${esc(name)}</span>
+      <button class="btn btn-outline-secondary btn-sm" id="signout-btn">Sign out</button>
+    `;
+  }
   document.getElementById('signout-btn').addEventListener('click', () => signOutUser());
 
-  // Stats section
+  // Stats section (shown for all users — anonymous stats persist per browser)
   document.getElementById('user-photo').src = user.photoURL || '';
-  document.getElementById('user-name-display').textContent = user.displayName || 'Player';
+  document.getElementById('user-name-display').textContent = name;
   _renderStatsOverview(stats);
   document.getElementById('stats-section').classList.remove('hidden');
   document.getElementById('signin-prompt').classList.add('hidden');
 }
 
 function _showSignedOut() {
-  // Navbar sign-in button
+  // Navbar
   document.getElementById('nav-auth').innerHTML = `
-    <button class="btn btn-primary btn-sm d-flex align-items-center gap-2" id="signin-btn-nav">
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style="width:16px;height:16px" />
-      Sign in
-    </button>
+    <button class="btn btn-primary btn-sm" id="signin-btn-nav">Sign in</button>
   `;
-  document.getElementById('signin-btn-nav').addEventListener('click', _handleSignIn);
+  document.getElementById('signin-btn-nav').addEventListener('click', () => {
+    document.getElementById('signin-prompt')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('player-name-input')?.focus();
+  });
 
-  // Sign-in prompt section
+  // Show sign-in prompt
   document.getElementById('stats-section').classList.add('hidden');
   document.getElementById('signin-prompt').classList.remove('hidden');
-  document.getElementById('signin-btn-main').addEventListener('click', _handleSignIn);
+
+  // Name-only sign-in
+  const nameInput = document.getElementById('player-name-input');
+  const playBtn   = document.getElementById('play-btn');
+  if (playBtn) {
+    playBtn.addEventListener('click', _handlePlayAsName);
+    nameInput?.addEventListener('keydown', e => { if (e.key === 'Enter') _handlePlayAsName(); });
+  }
+
+  // Google sign-in
+  document.getElementById('signin-btn-main')?.addEventListener('click', _handleSignIn);
+}
+
+async function _handlePlayAsName() {
+  const nameInput = document.getElementById('player-name-input');
+  const errEl     = document.getElementById('signin-error');
+  if (errEl) errEl.textContent = '';
+  const name = nameInput?.value || '';
+  try {
+    showLoading('Joining…');
+    await signInWithName(name);
+    // onAuthStateChanged will fire and re-render via onAuthReady
+  } catch (e) {
+    hideLoading();
+    if (errEl) errEl.textContent = e.message;
+  }
 }
 
 async function _handleSignIn() {
-  document.getElementById('signin-error') && (document.getElementById('signin-error').textContent = '');
+  const errEl = document.getElementById('signin-error');
+  if (errEl) errEl.textContent = '';
   try { await signIn(); }
   catch (e) {
-    const el = document.getElementById('signin-error');
-    if (el) el.textContent = e.message;
+    if (errEl) errEl.textContent = e.message;
   }
 }
 

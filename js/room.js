@@ -76,11 +76,11 @@ async function ensureInRoom(roomCode) {
 
 function _makePlayer(user) {
   return {
-    name:      user.displayName || 'Player',
-    photoURL:  user.photoURL    || '',
-    team:      null,
-    role:      'operative',
-    online:    true,
-    joinedAt:  firebase.database.ServerValue.TIMESTAMP
+    name:     getDisplayName(user),
+    photoURL: user.photoURL || '',
+    team:     null,
+    role:     'operative',
+    online:   true,
+    joinedAt: firebase.database.ServerValue.TIMESTAMP
   };
 }
