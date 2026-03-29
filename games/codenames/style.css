@@ -127,6 +127,43 @@
   border-radius: 4px;
 }
 
+/* Vote badge — top-right corner count bubble */
+.vote-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: rgba(255, 215, 0, 0.92);
+  color: #111;
+  border-radius: 50%;
+  min-width: 16px;
+  height: 16px;
+  font-size: 9px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0 2px;
+  pointer-events: none;
+}
+
+/* My current vote — bold white border */
+.card.my-vote {
+  border-color: rgba(255,255,255,.7);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.4);
+}
+
+/* Top-voted card — gold glow */
+.card.top-voted {
+  border-color: gold;
+  box-shadow: 0 0 10px rgba(255,215,0,.55);
+  animation: vote-pulse 1.5s ease-in-out infinite;
+}
+@keyframes vote-pulse {
+  0%,100% { box-shadow: 0 0 6px rgba(255,215,0,.3); }
+  50%      { box-shadow: 0 0 14px rgba(255,215,0,.7); }
+}
+
 /* ===== Action bar ===== */
 .action-bar {
   padding: 10px 16px;

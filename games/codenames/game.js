@@ -8,32 +8,34 @@
      scores/red|blue   — remaining agents per team
      clue/             — active clue: word, number, guessesLeft, givenBy
      clueHistory/      — log of all clues (for history sidebar)
-     pendingGuess/     — operative writes; spymaster processes atomically
+     pendingGuess/     — vote object: { votes:{uid:idx}, confirmations:{uid:true},
+                         claimedBy:null, startedAt }
      private/keyCard   — 25-element array (readable by spymasters only)
 
-   Security: keyCard is never sent to operative clients.
-   Guess resolution uses a Firebase transaction on pendingGuess/claimedBy
-   so only one spymaster processes each guess.
+   Voting flow:
+     1. Operatives tap cards to cast/change their vote.
+     2. Spymaster clicks "Confirm [CARD]" → immediately resolves top-voted card.
+     3. Alternatively, ALL team members confirm → spymaster auto-resolves.
+     4. Timer reaches 0: top-voted card resolves (or turn passes if tie/no votes).
    ===================================================== */
 
-// Wrapped in an IIFE so private variables don't clash with lobby.js globals.
 (function () {
 
-// ── Module state (reset in init) ─────────────────────────
-let _roomCode, _myUid, _isHost;
+// ── Module state ─────────────────────────────────────────
+let _roomCode, _myUid;
 let _myRole      = null;
 let _myTeam      = null;
-let _keyCard     = null;   // loaded for spymasters and tableside GM
-let _isTableside = false;  // GM mode: 1 phone, host acts as neutral key-card holder
+let _keyCard     = null;     // loaded for spymasters and tableside GM
+let _isTableside = false;
 let _words    = [];
 let _revealed = [];
 let _scores   = { red: 9, blue: 8 };
 let _meta     = {};
 let _clue     = {};
-let _pendingIdx      = null;
-let _guessedThisTurn = false;
-let _timerInterval   = null;
-let _statsWritten    = false;
+let _players  = {};          // full players snapshot (for confirmation checks)
+let _pendingGuess = null;    // { votes:{uid:idx}, confirmations:{uid:true}, claimedBy, startedAt }
+let _timerInterval = null;
+let _statsWritten  = false;
 
 const $ = id => document.getElementById(id);
 
@@ -86,12 +88,12 @@ window.GAME = {
           : 'Waiting for the game master to join.'
       };
     }
-    const list      = Object.values(players);
-    const redSpy    = list.filter(p => p.team === 'red'  && p.role === 'spymaster').length;
-    const blueSpy   = list.filter(p => p.team === 'blue' && p.role === 'spymaster').length;
-    const redCount  = list.filter(p => p.team === 'red').length;
-    const blueCount = list.filter(p => p.team === 'blue').length;
-    const valid     = redSpy >= 1 && blueSpy >= 1 && redCount >= 1 && blueCount >= 1;
+    const list     = Object.values(players);
+    const redSpy   = list.filter(p => p.team === 'red'  && p.role === 'spymaster').length;
+    const blueSpy  = list.filter(p => p.team === 'blue' && p.role === 'spymaster').length;
+    const redCount = list.filter(p => p.team === 'red').length;
+    const blueCount= list.filter(p => p.team === 'blue').length;
+    const valid    = redSpy >= 1 && blueSpy >= 1 && redCount >= 1 && blueCount >= 1;
     return {
       valid,
       hint: valid
@@ -111,14 +113,14 @@ window.GAME = {
     scores[startTeam] = 9;
 
     return {
-      'board/words':      words,
-      'board/revealed':   Array(25).fill(null),
-      'scores':           scores,
-      'clue':             { word: null, number: null, guessesLeft: 0, givenBy: null },
-      'pendingGuess':     null,
-      'clueHistory':      null,
-      'private/keyCard':  keyCard,
-      'meta/currentTurn': startTeam,
+      'board/words':       words,
+      'board/revealed':    Array(25).fill(null),
+      'scores':            scores,
+      'clue':              { word: null, number: null, guessesLeft: 0, givenBy: null },
+      'pendingGuess':      null,
+      'clueHistory':       null,
+      'private/keyCard':   keyCard,
+      'meta/currentTurn':  startTeam,
       'meta/startingTeam': startTeam
     };
   },
@@ -128,20 +130,16 @@ window.GAME = {
   init(roomCode, myUid) {
     _roomCode = roomCode;
     _myUid    = myUid;
-
-    // Copy-code button
     const ccBtn = $('copy-code-btn');
     if (ccBtn) ccBtn.addEventListener('click', _shareRoom);
   },
 
   onStatusChange(status, meta) {
-    _meta        = meta;
-    _isTableside = !!(meta.settings?.tableside);
+    _meta         = meta;
+    _isTableside  = !!(meta.settings?.tableside);
+    _pendingGuess = null;
     if (status === 'playing') {
-      _guessedThisTurn = false;
-      _pendingIdx      = null;
       _subscribeGame();
-      // GM always loads the key card; spymasters load theirs
       if (_myRole === 'spymaster' || _isTableside) { if (!_keyCard) _loadKeyCard(); }
       _startTimer();
     }
@@ -153,21 +151,28 @@ window.GAME = {
   },
 
   onPlayersUpdate(players, meta) {
+    _players     = players || {};
     _isTableside = !!(meta.settings?.tableside);
     const me = players[_myUid];
     if (me) {
       _myRole = me.role || 'operative';
       _myTeam = me.team || null;
     }
-    // In tableside mode the host acts as GM regardless of lobby role assignment
     if (_isTableside) { _myRole = 'gm'; _myTeam = null; }
     if (_myRole === 'spymaster' && meta.status === 'playing' && !_keyCard) {
       _loadKeyCard();
     }
   },
 
-  getResetUpdate(players) {
-    const update = {
+  getResetUpdate() {
+    _keyCard      = null;
+    _words        = [];
+    _revealed     = [];
+    _pendingGuess = null;
+    _players      = {};
+    _statsWritten = false;
+    _isTableside  = false;
+    return {
       'board':        null,
       'clue':         null,
       'scores':       null,
@@ -175,14 +180,6 @@ window.GAME = {
       'clueHistory':  null,
       'private':      null
     };
-    _keyCard         = null;
-    _words           = [];
-    _revealed        = [];
-    _guessedThisTurn = false;
-    _pendingIdx      = null;
-    _statsWritten    = false;
-    _isTableside     = false;
-    return update;
   }
 };
 
@@ -190,7 +187,6 @@ window.GAME = {
 let _gameSubs = [];
 
 function _subscribeGame() {
-  // Clean up any previous subs
   _gameSubs.forEach(off => off());
   _gameSubs = [];
 
@@ -219,7 +215,6 @@ function _onBoard(snap) {
 
 function _onClue(snap) {
   _clue = snap.val() || {};
-  if (_clue.word) _guessedThisTurn = false;
   _renderClueDisplay();
   _renderActions();
 }
@@ -243,52 +238,86 @@ function _onClueHistory(snap) {
 }
 
 function _onPendingGuess(snap) {
-  const pg = snap.val();
-  if (!pg) {
-    // Guess resolved — clear local pending state
-    _pendingIdx = null;
-    $('pending-indicator')?.classList.add('hidden');
+  _pendingGuess = snap.val();
+  if (!_pendingGuess) {
     _renderGrid();
     _renderActions();
     return;
   }
-  // Show spinner for all operatives
-  if (_myRole === 'operative') {
-    _pendingIdx = pg.idx;
-    $('pending-indicator')?.classList.remove('hidden');
-    $('end-turn-btn')?.classList.add('hidden');
-    _renderGrid();
+
+  // Spymaster/GM: check if all team members have confirmed → auto-process
+  if (_keyCard && (_isTableside || (_myRole === 'spymaster' && _myTeam === _meta.currentTurn))) {
+    const topIdx = _getTopVotedIdx();
+    if (topIdx !== null && _allTeamMembersConfirmed()) {
+      _processPendingGuess({ ..._pendingGuess, idx: topIdx });
+      return;
+    }
   }
-  // Active team's spymaster (or GM) processes the guess
-  if ((_isTableside || (_myRole === 'spymaster' && _myTeam === _meta.currentTurn)) && _keyCard) {
-    _processPendingGuess(pg);
-  }
+
+  _renderGrid();
+  _renderActions();
 }
 
-// ── Spymaster: key card + guess processing ────────────────
+// ── Vote helpers ──────────────────────────────────────────
+
+function _getVoteCounts() {
+  const counts = {};
+  Object.values(_pendingGuess?.votes || {}).forEach(idx => {
+    counts[idx] = (counts[idx] || 0) + 1;
+  });
+  return counts;
+}
+
+// Returns the top-voted card index, or null if no votes or a tie.
+function _getTopVotedIdx() {
+  const counts  = _getVoteCounts();
+  const entries = Object.entries(counts);
+  if (!entries.length) return null;
+  const maxCount = Math.max(...entries.map(([, c]) => c));
+  const tops     = entries.filter(([, c]) => c === maxCount);
+  return tops.length === 1 ? parseInt(tops[0][0], 10) : null;
+}
+
+// Returns uids of online players on the active team.
+function _getActiveTeamPlayers() {
+  return Object.entries(_players)
+    .filter(([, p]) => p.team === _meta.currentTurn && p.online !== false)
+    .map(([uid]) => uid);
+}
+
+// True if every online active-team player has written a confirmation.
+function _allTeamMembersConfirmed() {
+  if (!_pendingGuess?.confirmations) return false;
+  const team = _getActiveTeamPlayers();
+  if (!team.length) return false;
+  return team.every(uid => _pendingGuess.confirmations[uid]);
+}
+
+// ── Key card + guess processing ───────────────────────────
 
 function _loadKeyCard() {
   db.ref(`rooms/${_roomCode}/private/keyCard`).once('value')
-    .then(snap => {
-      _keyCard = snap.val();
-      _renderGrid(); // re-render with color overlays
-    })
-    .catch(() => {}); // permission denied for operatives — expected
+    .then(snap => { _keyCard = snap.val(); _renderGrid(); })
+    .catch(() => {});
 }
 
 function _processPendingGuess(pg) {
-  // Claim atomically — only one spymaster wins
+  const btn = $('confirm-guess-btn');
+  if (btn) btn.disabled = true;
   db.ref(`rooms/${_roomCode}/pendingGuess/claimedBy`).transaction(
     current => (current !== null ? undefined : _myUid),
-    (err, committed) => { if (!err && committed) _resolveGuess(pg.idx); }
+    (err, committed) => {
+      if (btn) btn.disabled = false;
+      if (!err && committed) _resolveGuess(pg.idx);
+    }
   );
 }
 
 function _resolveGuess(idx) {
-  const cardType   = _keyCard[idx];
-  const turn       = _meta.currentTurn;
-  const opp        = opposite(turn);
-  const updates    = {};
+  const cardType = _keyCard[idx];
+  const turn     = _meta.currentTurn;
+  const opp      = opposite(turn);
+  const updates  = {};
 
   updates[`board/revealed/${idx}`] = cardType;
 
@@ -345,6 +374,11 @@ function _renderGrid() {
   const grid = $('card-grid');
   if (!grid || !_words.length) return;
 
+  const votes   = _pendingGuess?.votes || {};
+  const counts  = _getVoteCounts();
+  const topIdx  = _getTopVotedIdx();
+  const myVote  = (votes[_myUid] !== undefined) ? votes[_myUid] : null;
+
   grid.innerHTML = '';
   _words.forEach((word, i) => {
     const div = document.createElement('div');
@@ -356,14 +390,21 @@ function _renderGrid() {
     if (rev) {
       div.classList.add(`revealed-${rev}`);
     } else {
-      if (_myRole === 'spymaster' && _keyCard?.[i]) {
+      if ((_myRole === 'spymaster' || _isTableside) && _keyCard?.[i]) {
         div.classList.add(`key-${_keyCard[i]}`);
       }
       if (_canGuess()) {
         div.classList.add('clickable');
         div.addEventListener('click', () => _handleCardClick(i));
       }
-      if (_pendingIdx === i) div.classList.add('pending');
+      if (myVote === i) div.classList.add('my-vote');
+      if (topIdx === i) div.classList.add('top-voted');
+      if (counts[i] > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'vote-badge';
+        badge.textContent = counts[i];
+        div.appendChild(badge);
+      }
     }
     grid.appendChild(div);
   });
@@ -382,10 +423,10 @@ function _renderClueDisplay() {
   if (!el) return;
 
   if (!_clue?.word) {
-    const waiting = (turn === _myTeam && _myRole === 'spymaster')
-      ? 'Give a clue to your team…'
-      : 'Waiting for spymaster…';
-    el.innerHTML = `<span style="color:var(--text-muted);font-size:13px">${waiting}</span>`;
+    const isSpy = (_isTableside) || (turn === _myTeam && _myRole === 'spymaster');
+    el.innerHTML = `<span style="color:var(--text-muted);font-size:13px">${
+      isSpy ? 'Give a clue to your team\u2026' : 'Waiting for spymaster\u2026'
+    }</span>`;
     return;
   }
   el.innerHTML = `
@@ -398,57 +439,98 @@ function _renderClueDisplay() {
 
 function _renderActions() {
   const turn       = _meta.currentTurn;
-  const hasClue    = !!_clue?.word;
-  const hasPending = _pendingIdx !== null;
+  const hasClue    = !!_clue?.word && (_clue.guessesLeft || 0) > 0;
+  const topIdx     = _getTopVotedIdx();
+  const voteCount  = Object.keys(_pendingGuess?.votes || {}).length;
 
-  const endBtn   = $('end-turn-btn');
-  const clueForm = $('clue-form');
-  const hint     = $('action-hint');
-  const bar      = $('turn-bar');
+  const endBtn     = $('end-turn-btn');
+  const clueForm   = $('clue-form');
+  const hint       = $('action-hint');
+  const confirmBtn = $('confirm-guess-btn');
+  const pendingEl  = $('pending-indicator');
+  const bar        = $('turn-bar');
 
   if (bar) {
     bar.className   = `turn-bar turn-${turn || 'none'}`;
     bar.textContent = turn
       ? `${turn === 'red' ? '🔴 RED' : '🔵 BLUE'}'S TURN`
-      : 'Waiting…';
+      : 'Waiting\u2026';
   }
 
   if (!endBtn || !clueForm || !hint) return;
+
+  // Reset
   endBtn.classList.add('hidden');
   clueForm.classList.add('hidden');
+  confirmBtn?.classList.add('hidden');
+  pendingEl?.classList.add('hidden');
   hint.textContent = '';
 
-  if (_isTableside) {
-    // GM sees everything; clue form shows when no clue is active; guess controls always visible
-    if (!hasClue) {
+  const isMyTurn    = _isTableside || (turn === _myTeam && _myTeam !== null);
+  const isMyTurnSpy = isMyTurn && (_myRole === 'spymaster' || _isTableside);
+
+  // ── Clue phase ──
+  if (!hasClue) {
+    if (isMyTurnSpy) {
       clueForm.classList.remove('hidden');
-      hint.textContent = `Give a clue for the ${turn?.toUpperCase() || ''} team.`;
-    } else if (!hasPending && _canGuess()) {
-      hint.textContent = `Tap a card to guess for ${turn?.toUpperCase() || 'the'} team.`;
-      if (_guessedThisTurn) endBtn.classList.remove('hidden');
-    } else if (hasPending) {
-      hint.textContent = 'Processing guess…';
-    }
-  } else {
-    const isMyTurn = turn === _myTeam && _myTeam !== null;
-    if (_myRole === 'spymaster') {
-      if (isMyTurn && !hasClue)  { clueForm.classList.remove('hidden'); hint.textContent = 'Give a one-word clue and a number.'; }
-      else if (isMyTurn)          { hint.textContent = 'Your team is guessing…'; }
-      else                        { hint.textContent = "Opponent's turn — stay expressionless!"; }
+      hint.textContent = `Give a one-word clue for the ${turn?.toUpperCase() || ''} team.`;
+    } else if (isMyTurn) {
+      hint.textContent = 'Waiting for your spymaster\u2019s clue\u2026';
     } else {
-      if (!isMyTurn)              { hint.textContent = "Opponent's turn."; }
-      else if (!hasClue)          { hint.textContent = "Waiting for your spymaster\u2019s clue\u2026"; }
-      else if (!hasPending && _canGuess()) {
-        hint.textContent = 'Tap a card to guess.';
-        if (_guessedThisTurn) endBtn.classList.remove('hidden');
-      }
+      hint.textContent = 'Opponent\u2019s turn.';
     }
+    return;
   }
+
+  // ── Guess phase — not my team ──
+  if (!isMyTurn) {
+    hint.textContent = voteCount > 0
+      ? `Opponents are voting (${voteCount} vote${voteCount !== 1 ? 's' : ''}\u2026)`
+      : 'Opponent\u2019s turn \u2014 stay expressionless!';
+    return;
+  }
+
+  // ── Guess phase — my team ──
+  if (voteCount === 0) {
+    hint.textContent = _isTableside
+      ? `Tap a card to select the guess for ${turn?.toUpperCase()} team.`
+      : 'Tap a card to cast your vote.';
+    endBtn.classList.remove('hidden');
+    return;
+  }
+
+  // Votes exist
+  if (topIdx !== null) {
+    const topWord      = esc(_words[topIdx]);
+    const confirmCount = Object.keys(_pendingGuess?.confirmations || {}).length;
+    const teamSize     = _getActiveTeamPlayers().length;
+    const myConfirmed  = !!_pendingGuess?.confirmations?.[_myUid];
+
+    if (confirmBtn) {
+      if (isMyTurnSpy) {
+        confirmBtn.textContent = `Confirm "${topWord}"`;
+        confirmBtn.disabled    = false;
+      } else {
+        confirmBtn.textContent = myConfirmed ? 'Confirmed \u2713' : `Confirm "${topWord}"`;
+        confirmBtn.disabled    = myConfirmed;
+      }
+      confirmBtn.classList.remove('hidden');
+    }
+
+    hint.textContent = isMyTurnSpy
+      ? `${voteCount} vote${voteCount !== 1 ? 's' : ''} \u2014 you can confirm or let the team decide.`
+      : `Top vote: \u201c${topWord}\u201d \u2014 ${confirmCount}/${teamSize} confirmed`;
+  } else {
+    // Tie
+    hint.textContent = 'Tie vote! Players must agree on a card. Timer expiry will pass the turn.';
+  }
+
+  endBtn.classList.remove('hidden');
 }
 
 function _writeStats(meta) {
   if (_statsWritten) return;
-  if (_isTableside) return; // no per-user stats for tableside GM games
+  if (_isTableside)  return;
   if (!meta.winner || !_myTeam) return;
   _statsWritten = true;
   const won = _myTeam === meta.winner;
@@ -459,8 +541,8 @@ function _writeStats(meta) {
 }
 
 function _renderFinished() {
-  const winner  = _meta.winner;
-  const banner  = $('winner-banner');
+  const winner = _meta.winner;
+  const banner = $('winner-banner');
   if (banner) {
     banner.className = `winner-banner ${winner || ''}`;
     const name = $('winner-name');
@@ -470,7 +552,6 @@ function _renderFinished() {
     if (r) r.textContent = reasons[_meta.winReason] || '';
   }
 
-  // Mini board in #finished-extra
   const extra = $('finished-extra');
   if (extra && _words.length && _keyCard) {
     extra.innerHTML = `
@@ -489,42 +570,55 @@ function _renderFinished() {
 
 // ── Game actions ──────────────────────────────────────────
 
+// Can this player cast/change a vote?
 function _canGuess() {
   if (_isTableside) {
-    // GM can guess on behalf of the active team whenever there's an active clue
-    return !!_clue?.word && (_clue.guessesLeft || 0) > 0
-      && _pendingIdx === null && _meta.status === 'playing';
+    return !!_clue?.word && (_clue.guessesLeft || 0) > 0 && _meta.status === 'playing';
   }
   return _myRole === 'operative'
     && _meta.currentTurn === _myTeam
     && _myTeam !== null
     && !!_clue?.word
     && (_clue.guessesLeft || 0) > 0
-    && _pendingIdx === null
     && _meta.status === 'playing';
 }
 
 function _handleCardClick(idx) {
   if (!_canGuess()) return;
-  _pendingIdx = idx;
-  $('pending-indicator')?.classList.remove('hidden');
-  $('end-turn-btn')?.classList.add('hidden');
-  db.ref(`rooms/${_roomCode}/pendingGuess`).set({
-    idx,
-    byUid:     _myUid,
-    claimedBy: null,
-    at:        firebase.database.ServerValue.TIMESTAMP
-  }).catch(e => {
-    _pendingIdx = null;
-    $('pending-indicator')?.classList.add('hidden');
-    showToast(e.message, 'error');
-  });
+  if (!_pendingGuess) {
+    // First vote — create the pending guess object
+    db.ref(`rooms/${_roomCode}/pendingGuess`).set({
+      votes:         { [_myUid]: idx },
+      confirmations: {},
+      claimedBy:     null,
+      startedAt:     firebase.database.ServerValue.TIMESTAMP
+    }).catch(e => showToast(e.message, 'error'));
+  } else {
+    // Change vote
+    db.ref(`rooms/${_roomCode}/pendingGuess/votes/${_myUid}`).set(idx)
+      .catch(e => showToast(e.message, 'error'));
+  }
 }
 
-// End-turn button
+async function _confirmGuess() {
+  const topIdx = _getTopVotedIdx();
+  if (topIdx === null) {
+    // Tie or no votes: pass the turn
+    _doEndTurn();
+    return;
+  }
+  // Write confirmation so others can see consensus
+  await db.ref(`rooms/${_roomCode}/pendingGuess/confirmations/${_myUid}`).set(true).catch(() => {});
+  // Spymaster/GM immediately resolves
+  if (_keyCard && (_isTableside || (_myRole === 'spymaster' && _myTeam === _meta.currentTurn))) {
+    _processPendingGuess({ ..._pendingGuess, idx: topIdx });
+  }
+}
+
 document.addEventListener('click', e => {
-  if (e.target.id === 'end-turn-btn') _doEndTurn();
-  if (e.target.id === 'submit-clue-btn') _submitClue();
+  if (e.target.id === 'end-turn-btn')      _doEndTurn();
+  if (e.target.id === 'submit-clue-btn')   _submitClue();
+  if (e.target.id === 'confirm-guess-btn') _confirmGuess();
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'clue-word') _submitClue();
@@ -533,9 +627,8 @@ document.addEventListener('keydown', e => {
 async function _doEndTurn() {
   if (!_isTableside && (!_myTeam || _meta.currentTurn !== _myTeam)) return;
   $('end-turn-btn')?.classList.add('hidden');
-  _guessedThisTurn = false;
   const updates = {};
-  _applyEndTurn(updates, _myTeam);
+  _applyEndTurn(updates, _isTableside ? _meta.currentTurn : _myTeam);
   updates['pendingGuess'] = null;
   await db.ref(`rooms/${_roomCode}`).update(updates);
 }
@@ -561,7 +654,11 @@ async function _submitClue() {
   if (timerSecs > 0) updates['meta/timerEndsAt'] = Date.now() + timerSecs * 1000;
 
   const histKey = db.ref(`rooms/${_roomCode}/clueHistory`).push().key;
-  updates[`clueHistory/${histKey}`] = { word, number, team: _isTableside ? _meta.currentTurn : _myTeam, at: Date.now() };
+  updates[`clueHistory/${histKey}`] = {
+    word, number,
+    team: _isTableside ? _meta.currentTurn : _myTeam,
+    at:   Date.now()
+  };
 
   await db.ref(`rooms/${_roomCode}`).update(updates);
   if (wordEl) wordEl.value = '';
@@ -580,11 +677,22 @@ function _startTimer() {
   _timerInterval = setInterval(() => {
     const endsAt = _meta.timerEndsAt;
     if (!endsAt) { el.textContent = ''; el.className = 'timer-display ok'; return; }
-    const rem  = endsAt - Date.now();
+    const rem = endsAt - Date.now();
     if (rem <= 0) {
       el.textContent = '0s'; el.className = 'timer-display urgent';
-      if (_myRole === 'operative' && _meta.currentTurn === _myTeam) {
-        _stopTimer(); _doEndTurn();
+      _stopTimer();
+      const isActive = _isTableside || _meta.currentTurn === _myTeam;
+      if (!isActive) return;
+      // Top-voted (no tie) → resolve; tie or no votes → pass turn
+      const topIdx = _getTopVotedIdx();
+      if (topIdx !== null && _keyCard) {
+        _processPendingGuess({ ..._pendingGuess, idx: topIdx });
+      } else if (topIdx !== null) {
+        // Operative confirms; spymaster will process via _onPendingGuess
+        db.ref(`rooms/${_roomCode}/pendingGuess/confirmations/${_myUid}`).set(true).catch(() => {});
+      } else {
+        // Tie or no votes — pass the turn
+        _doEndTurn();
       }
       return;
     }
@@ -606,14 +714,11 @@ async function _shareRoom() {
 
 // ── Boot ──────────────────────────────────────────────────
 onAuthReady(async user => {
-  if (!user) return; // auth.js redirects to /index.html
-
+  if (!user) return;
   const roomCode = getRoomCode();
   if (!roomCode) { window.location.href = '/index.html'; return; }
-
-  $('header-avatar').src                = user.photoURL || '';
-  $('header-room-code').textContent     = roomCode;
-
+  $('header-avatar').src            = user.photoURL || '';
+  $('header-room-code').textContent = roomCode;
   await ensureInRoom(roomCode);
   initLobby(roomCode, window.GAME);
 });
