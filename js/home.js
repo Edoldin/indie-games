@@ -1,5 +1,5 @@
 /* =====================================================
-   HOME PAGE — game picker, create room, join room.
+   HOME PAGE — game library, sign-in, stats, create/join.
    Depends on: firebase-init.js, utils.js, ui.js,
                auth.js, room.js.
 
@@ -7,99 +7,248 @@
    ===================================================== */
 
 // ── Game registry ─────────────────────────────────────────
-// Add a new entry here for each new game.
+// status: 'live' | 'coming-soon'
 const GAME_CONFIGS = {
   codenames: {
     slug:        'codenames',
+    status:      'live',
     name:        'Código Secreto',
     icon:        '🕵️',
     description: 'Give one-word clues to lead your team to their secret agents.',
     players:     '4 – 8 players',
     gameUrl:     '/games/codenames/game.html',
-    // HTML injected into the game card's settings row (host configures before creating)
     settingsHtml: `
-      <label for="cn-lang">Language</label>
-      <select id="cn-lang" class="select">
+      <label for="cn-lang" class="home-select-label">Language</label>
+      <select id="cn-lang" class="form-select form-select-sm home-select">
         <option value="en">English</option>
         <option value="es">Español</option>
       </select>
-      <label for="cn-timer">Timer</label>
-      <select id="cn-timer" class="select">
+      <label for="cn-timer" class="home-select-label">Timer</label>
+      <select id="cn-timer" class="form-select form-select-sm home-select">
         <option value="0">Off</option>
         <option value="60">60 s</option>
         <option value="90" selected>90 s</option>
         <option value="120">120 s</option>
       </select>
     `,
-    // Reads the settings form and returns a settings object for createRoom()
     collectSettings: () => ({
       language:     document.getElementById('cn-lang')?.value  || 'en',
       timerSeconds: parseInt(document.getElementById('cn-timer')?.value || '90', 10)
     })
+  },
+
+  wavelength: {
+    slug:        'wavelength',
+    status:      'coming-soon',
+    name:        'Wavelength',
+    icon:        '🌊',
+    description: 'Guess where a concept lands on a hidden spectrum. One player knows the target, the rest must tune in.',
+    players:     '2 – 12 players',
+  },
+
+  dixit: {
+    slug:        'dixit',
+    status:      'coming-soon',
+    name:        'Dixit',
+    icon:        '🃏',
+    description: 'Tell a story about a card so some — but not all — players can guess which one it is.',
+    players:     '3 – 6 players',
+  },
+
+  taboo: {
+    slug:        'taboo',
+    status:      'coming-soon',
+    name:        'Taboo',
+    icon:        '🚫',
+    description: 'Describe words to your team without saying the obvious clues. Speed counts.',
+    players:     '4 – 10 players',
   }
-  // future games: add here
 };
 
 // ── Auth ──────────────────────────────────────────────────
-onAuthReady(user => {
+onAuthReady(async user => {
+  let stats = {};
   if (user) {
-    showPlay(user);
+    try {
+      const snap = await db.ref(`userStats/${user.uid}`).once('value');
+      stats = snap.val() || {};
+    } catch (_) { /* stats unavailable, show zeros */ }
+    _showSignedIn(user, stats);
   } else {
-    document.getElementById('signin-section').classList.remove('hidden');
-    document.getElementById('play-section').classList.add('hidden');
+    _showSignedOut();
   }
+  _renderGameCards(user, stats);
 }, false /* don't redirect on home page */);
 
-function showPlay(user) {
-  document.getElementById('signin-section').classList.add('hidden');
-  const ps = document.getElementById('play-section');
-  ps.classList.remove('hidden');
-  ps.style.display = 'flex';
-  document.getElementById('user-name').textContent = user.displayName || 'Player';
-  document.getElementById('user-photo').src        = user.photoURL    || '';
-  renderGameCards();
+// ── Auth state renderers ──────────────────────────────────
+
+function _showSignedIn(user, stats) {
+  // Navbar
+  document.getElementById('nav-auth').innerHTML = `
+    <img src="${esc(user.photoURL || '')}" alt="avatar"
+      style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);object-fit:cover" />
+    <span class="d-none d-sm-inline small fw-semibold">${esc(user.displayName || 'Player')}</span>
+    <button class="btn btn-outline-secondary btn-sm" id="signout-btn">Sign out</button>
+  `;
+  document.getElementById('signout-btn').addEventListener('click', () => signOutUser());
+
+  // Stats section
+  document.getElementById('user-photo').src = user.photoURL || '';
+  document.getElementById('user-name-display').textContent = user.displayName || 'Player';
+  _renderStatsOverview(stats);
+  document.getElementById('stats-section').classList.remove('hidden');
+  document.getElementById('signin-prompt').classList.add('hidden');
 }
 
-document.getElementById('signin-btn').addEventListener('click', async () => {
-  document.getElementById('signin-error').textContent = '';
+function _showSignedOut() {
+  // Navbar sign-in button
+  document.getElementById('nav-auth').innerHTML = `
+    <button class="btn btn-primary btn-sm d-flex align-items-center gap-2" id="signin-btn-nav">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style="width:16px;height:16px" />
+      Sign in
+    </button>
+  `;
+  document.getElementById('signin-btn-nav').addEventListener('click', _handleSignIn);
+
+  // Sign-in prompt section
+  document.getElementById('stats-section').classList.add('hidden');
+  document.getElementById('signin-prompt').classList.remove('hidden');
+  document.getElementById('signin-btn-main').addEventListener('click', _handleSignIn);
+}
+
+async function _handleSignIn() {
+  document.getElementById('signin-error') && (document.getElementById('signin-error').textContent = '');
   try { await signIn(); }
-  catch (e) { document.getElementById('signin-error').textContent = e.message; }
-});
+  catch (e) {
+    const el = document.getElementById('signin-error');
+    if (el) el.textContent = e.message;
+  }
+}
 
-document.getElementById('signout-btn').addEventListener('click', () => signOutUser());
+// ── Stats section ─────────────────────────────────────────
 
-// ── Game card rendering ───────────────────────────────────
-function renderGameCards() {
-  const grid = document.getElementById('games-grid');
-  grid.innerHTML = Object.values(GAME_CONFIGS).map(g => `
-    <div class="game-card">
-      <div class="game-icon">${g.icon}</div>
-      <div class="game-info">
-        <div class="game-name">${esc(g.name)}</div>
-        <div class="game-desc">${esc(g.description)}</div>
-        <div class="game-meta">${esc(g.players)}</div>
-        <div class="game-settings">${g.settingsHtml || ''}</div>
-      </div>
-      <div class="game-card-actions">
-        <button class="btn btn-primary btn-sm" data-create="${g.slug}">Create</button>
+function _renderStatsOverview(stats) {
+  let totalPlayed = 0, totalWins = 0;
+  Object.values(GAME_CONFIGS)
+    .filter(g => g.status === 'live')
+    .forEach(g => {
+      const s = stats[g.slug] || {};
+      totalPlayed += s.gamesPlayed || 0;
+      totalWins   += s.wins       || 0;
+    });
+  const winRate = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
+
+  document.getElementById('stats-overview').innerHTML = `
+    <div class="col-4">
+      <div class="card home-card text-center">
+        <div class="card-body py-3 px-2">
+          <div class="stat-number">${totalPlayed}</div>
+          <div class="stat-label">Games</div>
+        </div>
       </div>
     </div>
-  `).join('');
+    <div class="col-4">
+      <div class="card home-card text-center">
+        <div class="card-body py-3 px-2">
+          <div class="stat-number">${totalWins}</div>
+          <div class="stat-label">Wins</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="card home-card text-center">
+        <div class="card-body py-3 px-2">
+          <div class="stat-number">${winRate}%</div>
+          <div class="stat-label">Win Rate</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
-  // Bind create buttons
+// ── Game card rendering ───────────────────────────────────
+
+function _renderGameCards(user, stats) {
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = Object.values(GAME_CONFIGS)
+    .map(g => _gameCardHtml(g, user, stats))
+    .join('');
+
   grid.querySelectorAll('[data-create]').forEach(btn => {
-    btn.addEventListener('click', () => handleCreate(btn.dataset.create));
+    btn.addEventListener('click', () => _handleCreate(btn.dataset.create));
+  });
+  grid.querySelectorAll('[data-signin]').forEach(btn => {
+    btn.addEventListener('click', _handleSignIn);
   });
 }
 
-async function handleCreate(slug) {
+function _gameCardHtml(g, user, stats) {
+  const isLive = g.status === 'live';
+
+  const statusBadge = isLive
+    ? '<span class="badge bg-success ms-2 game-status-badge">Live</span>'
+    : '<span class="badge bg-warning text-dark ms-2 game-status-badge">Coming Soon</span>';
+
+  // Per-game stats (only for live games when signed in)
+  const gs = stats?.[g.slug] || {};
+  const played  = gs.gamesPlayed || 0;
+  const wins    = gs.wins || 0;
+  const winPct  = played > 0 ? Math.round(wins / played * 100) : 0;
+  const statsRow = (user && isLive && played > 0)
+    ? `<p class="game-card-stats">${played} played &middot; ${wins} won &middot; ${winPct}% win rate</p>`
+    : '';
+
+  // Footer actions
+  let footer = '';
+  if (!isLive) {
+    footer = '';
+  } else if (user) {
+    footer = `
+      <div class="game-card-footer mt-auto pt-3">
+        ${g.settingsHtml ? `<div class="d-flex flex-wrap align-items-center gap-2 mb-3">${g.settingsHtml}</div>` : ''}
+        <button class="btn btn-primary btn-sm w-100" data-create="${g.slug}">Create Room</button>
+      </div>
+    `;
+  } else {
+    footer = `
+      <div class="game-card-footer mt-auto pt-3">
+        <button class="btn btn-outline-secondary btn-sm w-100" data-signin="1">Sign in to play</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card home-card h-100 game-card-home${isLive ? '' : ' game-card-dimmed'}">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex gap-3 mb-2">
+            <div class="game-icon-home">${g.icon}</div>
+            <div class="flex-fill">
+              <div class="d-flex align-items-baseline flex-wrap gap-1">
+                <span class="game-name-home">${esc(g.name)}</span>
+                ${statusBadge}
+              </div>
+              <p class="text-muted small mb-1 mt-1">${esc(g.description)}</p>
+              <small class="text-muted" style="font-size:11px">${esc(g.players)}</small>
+            </div>
+          </div>
+          ${statsRow}
+          ${footer}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Create room ───────────────────────────────────────────
+
+async function _handleCreate(slug) {
   const cfg = GAME_CONFIGS[slug];
   if (!cfg) return;
   showLoading('Creating room…');
   try {
     const settings = cfg.collectSettings();
     await createRoom(slug, settings, cfg.gameUrl);
-    // createRoom() navigates away on success
   } catch (e) {
     hideLoading();
     showToast(e.message, 'error');
@@ -107,22 +256,23 @@ async function handleCreate(slug) {
 }
 
 // ── Join room ─────────────────────────────────────────────
-document.getElementById('join-btn').addEventListener('click', handleJoin);
+
+document.getElementById('join-btn').addEventListener('click', _handleJoin);
 document.getElementById('join-code').addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleJoin();
+  if (e.key === 'Enter') _handleJoin();
 });
 document.getElementById('join-code').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 
-async function handleJoin() {
+async function _handleJoin() {
   const code  = document.getElementById('join-code').value.trim().toUpperCase();
   const errEl = document.getElementById('join-error');
   errEl.textContent = '';
   if (code.length !== 4) { errEl.textContent = 'Enter a 4-letter code.'; return; }
   showLoading('Joining…');
   try {
-    await joinRoom(code); // joinRoom navigates to the correct game page
+    await joinRoom(code);
   } catch (e) {
     hideLoading();
     errEl.textContent = e.message;

@@ -446,7 +446,7 @@ body {
 .loading-overlay p { font-size: 14px; color: var(--text-muted); }
 
 /* ===== Toast ===== */
-.toast {
+.app-toast {
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -467,8 +467,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.toast.show  { transform: translateX(-50%) translateY(0); opacity: 1; }
-.toast.error { background: var(--red-dark); }
+.app-toast.show  { transform: translateX(-50%) translateY(0); opacity: 1; }
+.app-toast.error { background: var(--red-dark); }
 
 /* ===== Desktop ===== */
 @media (min-width: 640px) {
@@ -483,4 +483,159 @@ body {
 @media (min-width: 960px) {
   .games-grid    { flex-direction: row; flex-wrap: wrap; }
   .game-card     { flex: 1 1 300px; }
+}
+
+/* ===== Bootstrap 5 dark theme overrides ===== */
+/* Only applied on pages that set data-bs-theme="dark" (index.html). */
+[data-bs-theme="dark"] {
+  --bs-body-bg:           #0d1b2a;
+  --bs-body-color:        #e8f4f8;
+  --bs-card-bg:           #1a2d3e;
+  --bs-card-border-color: #2a4060;
+  --bs-border-color:      #2a4060;
+  --bs-secondary-bg:      #1f3449;
+  --bs-tertiary-bg:       #273f58;
+  --bs-primary:           #1e88e5;
+  --bs-primary-rgb:       30, 136, 229;
+  --bs-link-color:        #1e88e5;
+  --bs-link-hover-color:  #42a5f5;
+  --bs-emphasis-color:    #e8f4f8;
+  --bs-secondary-color:   rgba(232,244,248,0.75);
+  --bs-tertiary-color:    rgba(232,244,248,0.5);
+  --bs-btn-bg:            transparent;
+}
+
+/* ── Navbar ── */
+#app-navbar {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+#app-navbar .navbar-brand {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* ── Hero ── */
+.hero-section {
+  background: linear-gradient(160deg, #0d1b2a 0%, #1a2d3e 60%);
+  border-bottom: 1px solid var(--border);
+}
+.hero-icon  { font-size: 60px; display: block; margin-bottom: 12px; line-height: 1; }
+.hero-title {
+  font-size: clamp(26px, 6vw, 46px);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin-bottom: 0;
+}
+.hero-tagline {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 8px;
+  letter-spacing: 0.06em;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+/* ── Stats section ── */
+.stats-section {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.user-stat-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+.stat-number {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text);
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+/* ── Sign-in prompt ── */
+.signin-prompt-card {
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+/* ── Home cards ── */
+.home-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+.game-card-home {
+  transition: border-color var(--transition), transform 0.15s ease;
+}
+.game-card-home:hover { border-color: var(--blue) !important; transform: translateY(-2px); }
+.game-card-dimmed     { opacity: 0.75; }
+.game-card-dimmed:hover { transform: none; border-color: var(--border) !important; }
+.game-icon-home { font-size: 40px; line-height: 1; flex-shrink: 0; }
+.game-name-home { font-size: 15px; font-weight: 800; letter-spacing: 0.04em; }
+.game-status-badge { font-size: 10px !important; letter-spacing: 0.06em; vertical-align: middle; }
+.game-card-stats {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.game-card-footer { border-top: 1px solid var(--border); }
+
+/* Settings selects inside game cards */
+.home-select-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 0;
+  align-self: center;
+}
+.home-select {
+  background-color: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+  width: auto !important;
+  min-width: 90px;
+  font-size: 13px !important;
+}
+.home-select:focus {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 0.2rem rgba(30,136,229,0.25) !important;
+}
+
+/* ── Join room ── */
+.home-input {
+  background-color: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+.home-input::placeholder { color: var(--text-muted) !important; }
+.home-input:focus {
+  background-color: var(--surface2) !important;
+  border-color: var(--blue) !important;
+  color: var(--text) !important;
+  box-shadow: 0 0 0 0.2rem rgba(30,136,229,0.25) !important;
 }

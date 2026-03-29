@@ -185,6 +185,11 @@ window.GAME = {
     pendingGuess/...
     clueHistory/...
     private/...    ← restricted by Firebase rules
+
+/userStats/{uid}/{gameSlug}/
+  gamesPlayed: number
+  wins:        number
+  (written via transaction from game.js when a game finishes)
 ```
 
 ---
@@ -219,6 +224,7 @@ window.GAME = {
    ```js
    yourslug: {
      slug:            'yourslug',
+     status:          'live',           // 'live' | 'coming-soon'
      name:            'Game Name',
      icon:            '🎲',
      description:     'One sentence description.',

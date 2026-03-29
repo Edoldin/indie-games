@@ -26,9 +26,10 @@ let _revealed = [];
 let _scores   = { red: 9, blue: 8 };
 let _meta     = {};
 let _clue     = {};
-let _pendingIdx   = null;
+let _pendingIdx      = null;
 let _guessedThisTurn = false;
 let _timerInterval   = null;
+let _statsWritten    = false;
 
 const $ = id => document.getElementById(id);
 
@@ -126,6 +127,7 @@ window.GAME = {
     if (status === 'finished') {
       _stopTimer();
       _renderFinished();
+      _writeStats(meta);
     }
   },
 
@@ -155,6 +157,7 @@ window.GAME = {
     _revealed        = [];
     _guessedThisTurn = false;
     _pendingIdx      = null;
+    _statsWritten    = false;
     return update;
   }
 };
@@ -405,6 +408,17 @@ function _renderActions() {
       if (_guessedThisTurn) endBtn.classList.remove('hidden');
     }
   }
+}
+
+function _writeStats(meta) {
+  if (_statsWritten) return;
+  if (!meta.winner || !_myTeam) return;
+  _statsWritten = true;
+  const won = _myTeam === meta.winner;
+  db.ref(`userStats/${_myUid}/codenames`).transaction(current => {
+    const s = current || { gamesPlayed: 0, wins: 0 };
+    return { gamesPlayed: s.gamesPlayed + 1, wins: s.wins + (won ? 1 : 0) };
+  });
 }
 
 function _renderFinished() {

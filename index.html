@@ -1,65 +1,93 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="theme-color" content="#0d1b2a" />
   <title>Indie Games</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="/css/shared.css" />
 </head>
 <body>
-  <main class="home-page">
-    <div class="home-logo">
-      <span class="home-icon">🎮</span>
-      <h1>INDIE <span class="accent">GAMES</span></h1>
-      <p class="tagline">Multiplayer party games for friends</p>
+
+  <!-- ── Navbar ── -->
+  <nav class="navbar sticky-top" id="app-navbar">
+    <div class="container-lg">
+      <span class="navbar-brand">INDIE <span class="text-primary">GAMES</span></span>
+      <div id="nav-auth" class="d-flex align-items-center gap-2"></div>
     </div>
+  </nav>
 
-    <!-- Not signed in -->
-    <div id="signin-section" class="signin-card hidden">
-      <p>Sign in to create or join a game room.</p>
-      <button class="btn btn-google btn-full" id="signin-btn">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-        Sign in with Google
-      </button>
-      <p id="signin-error" class="error-msg"></p>
+  <!-- ── Hero ── -->
+  <section class="hero-section text-center py-5">
+    <div class="container">
+      <div class="hero-icon">🎮</div>
+      <h1 class="hero-title">INDIE <span class="text-primary">GAMES</span></h1>
+      <p class="hero-tagline">Multiplayer party games for friends</p>
     </div>
+  </section>
 
-    <!-- Signed in -->
-    <div id="play-section" class="hidden" style="width:100%;max-width:720px;display:flex;flex-direction:column;gap:20px">
-
-      <div class="user-bar">
-        <img id="user-photo" src="" alt="avatar" />
-        <span>Welcome, <strong id="user-name"></strong></span>
-        <button class="btn btn-ghost btn-sm" id="signout-btn" style="margin-left:auto">Sign out</button>
-      </div>
-
-      <!-- Game cards — rendered by home.js from GAME_CONFIGS -->
-      <div id="games-grid" class="games-grid"></div>
-
-      <!-- Join any room -->
-      <div class="join-card">
-        <h3>Join a Room</h3>
-        <div class="join-row-input">
-          <input
-            type="text" id="join-code" class="input"
-            placeholder="4-letter room code"
-            maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"
-            style="flex:1"
-          />
-          <button class="btn btn-ghost" id="join-btn">Join</button>
+  <!-- ── Stats (signed in) ── -->
+  <section id="stats-section" class="stats-section hidden py-4">
+    <div class="container-lg">
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <img id="user-photo" src="" alt="avatar" class="user-stat-avatar" />
+        <div>
+          <div class="fw-bold" id="user-name-display"></div>
+          <small class="text-muted">Your statistics</small>
         </div>
-        <p id="join-error" class="error-msg"></p>
       </div>
+      <div class="row g-3" id="stats-overview"></div>
+    </div>
+  </section>
+
+  <!-- ── Sign-in prompt (not signed in) ── -->
+  <section id="signin-prompt" class="hidden py-4">
+    <div class="container-lg">
+      <div class="signin-prompt-card mx-auto">
+        <p class="text-muted small mb-3">Sign in to create rooms, track your stats, and play with friends.</p>
+        <button class="btn btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2" id="signin-btn-main">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style="width:18px;height:18px" />
+          Sign in with Google
+        </button>
+        <p id="signin-error" class="text-danger small mt-2 mb-0"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Game Library ── -->
+  <main class="py-4">
+    <div class="container-lg">
+      <h2 class="section-label mb-3">Game Library</h2>
+      <div class="row g-3" id="games-grid"></div>
     </div>
   </main>
+
+  <!-- ── Join Room ── -->
+  <section class="pb-5">
+    <div class="container-lg" style="max-width:560px">
+      <h2 class="section-label mb-3">Join a Room</h2>
+      <div class="card home-card">
+        <div class="card-body">
+          <div class="input-group">
+            <input type="text" id="join-code" class="form-control home-input"
+              placeholder="4-letter room code" maxlength="4"
+              autocomplete="off" autocapitalize="characters" spellcheck="false" />
+            <button class="btn btn-primary" id="join-btn">Join</button>
+          </div>
+          <p id="join-error" class="text-danger small mt-2 mb-0"></p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <div id="loading-overlay" class="loading-overlay hidden">
     <div class="big-spinner"></div>
     <p id="loading-msg">Loading…</p>
   </div>
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="app-toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>

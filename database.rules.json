@@ -1,5 +1,12 @@
 {
   "rules": {
+    "userStats": {
+      "$uid": {
+        ".read":  "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+
     "rooms": {
       "$roomCode": {
         ".read": "auth != null",
