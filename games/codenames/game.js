@@ -402,7 +402,7 @@ function _renderActions() {
     else                        { hint.textContent = "Opponent's turn — stay expressionless!"; }
   } else {
     if (!isMyTurn)              { hint.textContent = "Opponent's turn."; }
-    else if (!hasClue)          { hint.textContent = 'Waiting for your spymaster's clue…'; }
+    else if (!hasClue)          { hint.textContent = "Waiting for your spymaster\u2019s clue\u2026"; }
     else if (!hasPending && _canGuess()) {
       hint.textContent = 'Tap a card to guess.';
       if (_guessedThisTurn) endBtn.classList.remove('hidden');
