@@ -15,7 +15,7 @@ const GAME_CONFIGS = {
     name:        'Código Secreto',
     icon:        '🕵️',
     description: 'Give one-word clues to lead your team to their secret agents.',
-    players:     '4 – 8 players',
+    players:     '2 – 8 players',
     gameUrl:     '/games/codenames/game.html',
     settingsHtml: `
       <label for="cn-lang" class="home-select-label">Language</label>
@@ -35,6 +35,18 @@ const GAME_CONFIGS = {
       language:     document.getElementById('cn-lang')?.value  || 'en',
       timerSeconds: parseInt(document.getElementById('cn-timer')?.value || '90', 10)
     })
+  },
+
+  werewolves: {
+    slug:        'werewolves',
+    status:      'live',
+    name:        'Werewolves',
+    icon:        '🐺',
+    description: 'Hidden roles, night kills, and village votes. Can the villagers root out the werewolves?',
+    players:     '4 – 12 players',
+    gameUrl:     '/games/werewolves/game.html',
+    settingsHtml: '',
+    collectSettings: () => ({})
   },
 
   wavelength: {

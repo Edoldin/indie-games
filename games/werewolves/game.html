@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0a0f1a" />
+  <title>Werewolves</title>
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <span class="logo">🐺 <span>WERE</span>WOLVES</span>
+    <button class="room-code-badge" id="copy-code-btn" title="Copy invite link">
+      <span id="header-room-code">????</span>
+      <span class="copy-icon">⎘</span>
+    </button>
+    <img class="user-avatar" id="header-avatar" src="" alt="avatar" />
+  </header>
+
+  <!-- lobby.js injects full lobby HTML here -->
+  <section id="lobby-mount" class="screen hidden"></section>
+
+  <!-- ── Game ── -->
+  <section id="game-area" class="screen hidden">
+    <div id="ww-phase-header" class="ww-phase-header"></div>
+    <div id="ww-player-list" class="ww-player-list"></div>
+    <div id="ww-action-panel" class="ww-action-panel"></div>
+  </section>
+
+  <!-- ── Finished ── -->
+  <section id="finished" class="screen hidden">
+    <div class="finished-body">
+      <div id="winner-banner" class="winner-banner">
+        <div class="trophy">🏆</div>
+        <div class="wins-text">Winner</div>
+        <div id="winner-name" class="team-name">—</div>
+        <div id="winner-reason" class="reason"></div>
+      </div>
+      <div id="finished-actions" class="finished-actions"></div>
+      <div id="finished-extra"></div>
+    </div>
+  </section>
+
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="big-spinner"></div>
+    <p id="loading-msg">Connecting…</p>
+  </div>
+  <div id="toast" class="app-toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/room.js"></script>
+  <script src="/js/lobby.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

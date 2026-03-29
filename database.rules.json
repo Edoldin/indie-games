@@ -17,7 +17,7 @@
 
         "players": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && (auth.uid === $uid || root.child('rooms').child($roomCode).child('meta').child('hostUid').val() === auth.uid)"
           }
         },
 
@@ -45,7 +45,15 @@
           "keyCard": {
             ".read": "auth != null && root.child('rooms').child($roomCode).child('players').child(auth.uid).child('role').val() === 'spymaster'",
             ".write": "auth != null && root.child('rooms').child($roomCode).child('meta').child('hostUid').val() === auth.uid"
+          },
+          "roles": {
+            ".read": "auth != null && root.child('rooms').child($roomCode).child('players').child(auth.uid).child('role').val() === 'werewolf'",
+            ".write": "auth != null && root.child('rooms').child($roomCode).child('meta').child('hostUid').val() === auth.uid"
           }
+        },
+
+        "game": {
+          ".write": "auth != null"
         }
       }
     }

@@ -21,9 +21,10 @@
 
 // ── Module state (reset in init) ─────────────────────────
 let _roomCode, _myUid, _isHost;
-let _myRole   = null;
-let _myTeam   = null;
-let _keyCard  = null;   // only loaded for spymasters
+let _myRole      = null;
+let _myTeam      = null;
+let _keyCard     = null;   // loaded for spymasters and tableside GM
+let _isTableside = false;  // GM mode: 1 phone, host acts as neutral key-card holder
 let _words    = [];
 let _revealed = [];
 let _scores   = { red: 9, blue: 8 };
@@ -44,8 +45,14 @@ window.GAME = {
   // ── Lobby hooks ────────────────────────────────────────
 
   renderSettings(meta) {
-    const s = meta.settings || {};
+    const s  = meta.settings || {};
+    const ts = !!s.tableside;
     return `
+      <label for="cn-mode">Mode</label>
+      <select id="cn-mode" class="select">
+        <option value="0" ${!ts?'selected':''}>Online (teams with spymasters)</option>
+        <option value="1" ${ts?'selected':''}>Tableside (1 phone, GM with key card)</option>
+      </select>
       <label for="lang-sel">Language</label>
       <select id="lang-sel" class="select">
         <option value="en" ${(s.language||'en')==='en'?'selected':''}>English</option>
@@ -63,11 +70,22 @@ window.GAME = {
   onSettingChange(event, roomCode) {
     const id  = event.target.id;
     const val = event.target.value;
+    if (id === 'cn-mode')   db.ref(`rooms/${roomCode}/meta/settings/tableside`).set(val === '1');
     if (id === 'lang-sel')  db.ref(`rooms/${roomCode}/meta/settings/language`).set(val);
     if (id === 'timer-sel') db.ref(`rooms/${roomCode}/meta/settings/timerSeconds`).set(parseInt(val, 10));
   },
 
   lobbyValid(players, meta) {
+    const s = meta.settings || {};
+    if (s.tableside) {
+      const list = Object.values(players);
+      return {
+        valid: list.length >= 1,
+        hint: list.length >= 1
+          ? 'Game master ready — you hold the key card for both teams.'
+          : 'Waiting for the game master to join.'
+      };
+    }
     const list      = Object.values(players);
     const redSpy    = list.filter(p => p.team === 'red'  && p.role === 'spymaster').length;
     const blueSpy   = list.filter(p => p.team === 'blue' && p.role === 'spymaster').length;
@@ -117,14 +135,14 @@ window.GAME = {
   },
 
   onStatusChange(status, meta) {
-    _meta = meta;
+    _meta        = meta;
+    _isTableside = !!(meta.settings?.tableside);
     if (status === 'playing') {
       _guessedThisTurn = false;
       _pendingIdx      = null;
-      // Subscribe to game-specific paths
       _subscribeGame();
-      // keyCard for spymasters
-      if (_myRole === 'spymaster' && !_keyCard) _loadKeyCard();
+      // GM always loads the key card; spymasters load theirs
+      if (_myRole === 'spymaster' || _isTableside) { if (!_keyCard) _loadKeyCard(); }
       _startTimer();
     }
     if (status === 'finished') {
@@ -135,12 +153,14 @@ window.GAME = {
   },
 
   onPlayersUpdate(players, meta) {
+    _isTableside = !!(meta.settings?.tableside);
     const me = players[_myUid];
     if (me) {
       _myRole = me.role || 'operative';
       _myTeam = me.team || null;
     }
-    // If we just became a spymaster mid-game, load the key card
+    // In tableside mode the host acts as GM regardless of lobby role assignment
+    if (_isTableside) { _myRole = 'gm'; _myTeam = null; }
     if (_myRole === 'spymaster' && meta.status === 'playing' && !_keyCard) {
       _loadKeyCard();
     }
@@ -161,6 +181,7 @@ window.GAME = {
     _guessedThisTurn = false;
     _pendingIdx      = null;
     _statsWritten    = false;
+    _isTableside     = false;
     return update;
   }
 };
@@ -238,8 +259,8 @@ function _onPendingGuess(snap) {
     $('end-turn-btn')?.classList.add('hidden');
     _renderGrid();
   }
-  // Active team's spymaster processes the guess
-  if (_myRole === 'spymaster' && _myTeam === _meta.currentTurn && _keyCard) {
+  // Active team's spymaster (or GM) processes the guess
+  if ((_isTableside || (_myRole === 'spymaster' && _myTeam === _meta.currentTurn)) && _keyCard) {
     _processPendingGuess(pg);
   }
 }
@@ -376,21 +397,19 @@ function _renderClueDisplay() {
 }
 
 function _renderActions() {
-  const turn        = _meta.currentTurn;
-  const isMyTurn    = turn === _myTeam && _myTeam !== null;
-  const hasClue     = !!_clue?.word;
-  const hasPending  = _pendingIdx !== null;
+  const turn       = _meta.currentTurn;
+  const hasClue    = !!_clue?.word;
+  const hasPending = _pendingIdx !== null;
 
   const endBtn   = $('end-turn-btn');
   const clueForm = $('clue-form');
   const hint     = $('action-hint');
   const bar      = $('turn-bar');
 
-  // Turn bar
   if (bar) {
-    bar.className = `turn-bar turn-${turn || 'none'}`;
+    bar.className   = `turn-bar turn-${turn || 'none'}`;
     bar.textContent = turn
-      ? `${turn === 'red' ? '🔴 RED' : '🔵 BLUE'}${isMyTurn ? ' — YOUR TURN' : "'S TURN"}`
+      ? `${turn === 'red' ? '🔴 RED' : '🔵 BLUE'}'S TURN`
       : 'Waiting…';
   }
 
@@ -399,22 +418,37 @@ function _renderActions() {
   clueForm.classList.add('hidden');
   hint.textContent = '';
 
-  if (_myRole === 'spymaster') {
-    if (isMyTurn && !hasClue)  { clueForm.classList.remove('hidden'); hint.textContent = 'Give a one-word clue and a number.'; }
-    else if (isMyTurn)          { hint.textContent = 'Your team is guessing…'; }
-    else                        { hint.textContent = "Opponent's turn — stay expressionless!"; }
-  } else {
-    if (!isMyTurn)              { hint.textContent = "Opponent's turn."; }
-    else if (!hasClue)          { hint.textContent = "Waiting for your spymaster\u2019s clue\u2026"; }
-    else if (!hasPending && _canGuess()) {
-      hint.textContent = 'Tap a card to guess.';
+  if (_isTableside) {
+    // GM sees everything; clue form shows when no clue is active; guess controls always visible
+    if (!hasClue) {
+      clueForm.classList.remove('hidden');
+      hint.textContent = `Give a clue for the ${turn?.toUpperCase() || ''} team.`;
+    } else if (!hasPending && _canGuess()) {
+      hint.textContent = `Tap a card to guess for ${turn?.toUpperCase() || 'the'} team.`;
       if (_guessedThisTurn) endBtn.classList.remove('hidden');
+    } else if (hasPending) {
+      hint.textContent = 'Processing guess…';
+    }
+  } else {
+    const isMyTurn = turn === _myTeam && _myTeam !== null;
+    if (_myRole === 'spymaster') {
+      if (isMyTurn && !hasClue)  { clueForm.classList.remove('hidden'); hint.textContent = 'Give a one-word clue and a number.'; }
+      else if (isMyTurn)          { hint.textContent = 'Your team is guessing…'; }
+      else                        { hint.textContent = "Opponent's turn — stay expressionless!"; }
+    } else {
+      if (!isMyTurn)              { hint.textContent = "Opponent's turn."; }
+      else if (!hasClue)          { hint.textContent = "Waiting for your spymaster\u2019s clue\u2026"; }
+      else if (!hasPending && _canGuess()) {
+        hint.textContent = 'Tap a card to guess.';
+        if (_guessedThisTurn) endBtn.classList.remove('hidden');
+      }
     }
   }
 }
 
 function _writeStats(meta) {
   if (_statsWritten) return;
+  if (_isTableside) return; // no per-user stats for tableside GM games
   if (!meta.winner || !_myTeam) return;
   _statsWritten = true;
   const won = _myTeam === meta.winner;
@@ -456,6 +490,11 @@ function _renderFinished() {
 // ── Game actions ──────────────────────────────────────────
 
 function _canGuess() {
+  if (_isTableside) {
+    // GM can guess on behalf of the active team whenever there's an active clue
+    return !!_clue?.word && (_clue.guessesLeft || 0) > 0
+      && _pendingIdx === null && _meta.status === 'playing';
+  }
   return _myRole === 'operative'
     && _meta.currentTurn === _myTeam
     && _myTeam !== null
@@ -492,7 +531,7 @@ document.addEventListener('keydown', e => {
 });
 
 async function _doEndTurn() {
-  if (!_myTeam || _meta.currentTurn !== _myTeam) return;
+  if (!_isTableside && (!_myTeam || _meta.currentTurn !== _myTeam)) return;
   $('end-turn-btn')?.classList.add('hidden');
   _guessedThisTurn = false;
   const updates = {};
@@ -522,7 +561,7 @@ async function _submitClue() {
   if (timerSecs > 0) updates['meta/timerEndsAt'] = Date.now() + timerSecs * 1000;
 
   const histKey = db.ref(`rooms/${_roomCode}/clueHistory`).push().key;
-  updates[`clueHistory/${histKey}`] = { word, number, team: _myTeam, at: Date.now() };
+  updates[`clueHistory/${histKey}`] = { word, number, team: _isTableside ? _meta.currentTurn : _myTeam, at: Date.now() };
 
   await db.ref(`rooms/${_roomCode}`).update(updates);
   if (wordEl) wordEl.value = '';
