@@ -1,15 +1,16 @@
-# Código Secreto — Codenames Web App
+# Indie Games — Multi-Game Library
 
 ## URLs
-- **Producción:** (pending — deploy to Netlify)
-- **Firebase Console:** (pending)
+- **Producción:** https://dulcet-kangaroo-d57bf5.netlify.app
+- **GitHub:** https://github.com/Edoldin/indie-games
+- **Firebase Console:** https://console.firebase.google.com — project `indie-games-fdf3b`
 - **Firebase DB Region:** europe-west1
 
 ## Stack
-- HTML/CSS/JS (vanilla, no framework)
+- HTML/CSS/JS (vanilla, no framework, no build step)
 - Firebase Realtime Database (compat SDK v9.23.0)
 - Firebase Authentication — Google OAuth only
-- Netlify (auto deploy from main)
+- Netlify (auto-deploy from `main`)
 
 ---
 
@@ -17,32 +18,145 @@
 
 ```
 /
-├── index.html          # Landing: Google sign-in, create/join room
-├── game.html           # Full game: lobby → playing → finished
-├── wordlists.js        # 400-word EN list (WORDS_EN) + 400-word ES list (WORDS_ES)
-├── rules.md            # Full Codenames rules reference
-├── database.rules.json # Firebase Realtime Database security rules
-├── netlify.toml        # Netlify headers config
-├── .gitignore
+├── index.html                  # Game picker: sign-in + create/join any game
 ├── css/
-│   └── style.css       # All styles — mobile-first dark spy theme
-└── js/
-    ├── firebase-init.js # Firebase init (replace REPLACE_* placeholders)
-    ├── utils.js         # generateRoomCode, shuffle, generateKeyCard, pickWords, opposite, copyText
-    ├── home.js          # index.html logic: auth state, create room, join room
-    └── app.js           # game.html logic: all game state, rendering, Firebase listeners
+│   └── shared.css              # ALL shared styles (variables, lobby, buttons, forms, toast…)
+├── js/
+│   ├── firebase-init.js        # Firebase config + init (auth, db globals)
+│   ├── utils.js                # Pure helpers: generateRoomCode, shuffle, generateKeyCard,
+│   │                           #   pickWords, opposite, copyText, teamLabel
+│   ├── ui.js                   # DOM helpers: showScreen, showLoading, hideLoading,
+│   │                           #   showToast, esc, playerChip
+│   ├── auth.js                 # Google OAuth: onAuthReady, currentUser, signIn, signOutUser
+│   ├── room.js                 # Room CRUD: createRoom, joinRoom, ensureInRoom, getRoomCode
+│   ├── lobby.js                # Generic lobby: initLobby (call once per game page)
+│   └── home.js                 # index.html logic + GAME_CONFIGS registry
+├── games/
+│   └── codenames/
+│       ├── game.html           # Shell: header + #lobby-mount + #game-area + #finished
+│       ├── game.js             # Codenames GAME interface implementation
+│       ├── style.css           # Codenames-only styles (board, cards, score bar…)
+│       └── wordlists.js        # WORDS_EN + WORDS_ES (400 words each)
+├── database.rules.json         # Firebase security rules
+├── netlify.toml
+├── .gitignore
+├── CLAUDE.md                   # This file
+├── PLAYBOOK.md                 # Repeatable process for adding new games
+└── rules.md                    # Codenames game rules reference
 ```
 
 ---
 
-## Firebase Setup (required before first run)
+## Shared API Reference
 
-1. Create a project at https://console.firebase.google.com/
-2. Enable **Realtime Database** — choose `europe-west1` region
-3. Enable **Authentication → Google** sign-in provider
-4. Add your Netlify domain (and `localhost`) to **Auth → Authorized domains**
-5. Copy your project's config object into `js/firebase-init.js` (replace all `REPLACE_*` values)
-6. Publish the security rules: copy `database.rules.json` content into the Firebase Console rules editor (or use Firebase CLI)
+### `js/auth.js`
+```js
+onAuthReady(cb, redirectIfLoggedOut = true)
+// cb(user) called when auth state is resolved.
+// Pass false as 2nd arg on index.html (don't redirect logged-out users).
+
+currentUser()           // → Firebase User | null (sync, after onAuthReady)
+signIn()                // → Promise — Google popup (desktop) or redirect (mobile)
+signOutUser()           // → Promise
+```
+
+### `js/room.js`
+```js
+getRoomCode()           // → string | null — reads ?room= from URL
+createRoom(gameType, settings, gameUrl)
+// Creates room in Firebase, navigates to gameUrl?room=CODE.
+// gameType: string slug e.g. 'codenames'
+// settings: { language, timerSeconds, … } — game-specific blob
+
+joinRoom(code)
+// Reads meta.game from DB, navigates to /games/{game}/game.html?room=CODE.
+// Throws Error if not found or finished.
+
+ensureInRoom(roomCode)
+// Adds current user to players list if missing; sets online=true; registers onDisconnect.
+```
+
+### `js/lobby.js`
+```js
+initLobby(roomCode, gameObject)
+// Call once from game.js after ensureInRoom().
+// Subscribes to meta + players. Routes screens. Calls GAME hooks.
+// Renders the lobby HTML (team grid, join buttons, role toggle, settings, start btn).
+```
+
+### `js/ui.js`
+```js
+showScreen(ids, active)   // ids: string[], active: string — hide all, show active
+showLoading(msg)
+hideLoading()
+showToast(msg, type)      // type: 'error' | undefined
+esc(str)                  // → HTML-escaped string (use before innerHTML injection)
+playerChip(player, isMe)  // → HTML string for an avatar chip
+```
+
+### `js/utils.js`
+```js
+generateRoomCode()         // → 4-char string (unambiguous chars)
+shuffle(arr)               // → new shuffled array (pure)
+generateKeyCard(startTeam) // → 25-element array: 9 start, 8 other, 7 bystander, 1 assassin
+pickWords(wordList)        // → 25 random words from the list
+opposite(team)             // 'red' ↔ 'blue'
+copyText(text)             // → Promise — clipboard API with fallback
+```
+
+---
+
+## GAME Interface Contract
+
+Every `game.js` must assign `window.GAME` **before** calling `onAuthReady`.
+`lobby.js` reads `window.GAME` when `initLobby()` is called.
+
+```js
+window.GAME = {
+
+  name: 'Your Game Name',        // shown in header (optional)
+
+  // ── Lobby ──────────────────────────────────────────────
+
+  // Returns HTML string for host-only settings row.
+  // Read current values from meta.settings. Return '' for no settings.
+  renderSettings(meta) {},
+
+  // Called when any control inside #game-settings-slot changes.
+  // Write updated value to Firebase: db.ref(`rooms/${roomCode}/meta/settings/KEY`).set(val)
+  onSettingChange(event, roomCode) {},
+
+  // Returns { valid: boolean, hint: string }.
+  // hint is shown below the Start button.
+  lobbyValid(players, meta) {},
+
+  // Returns a Firebase multi-path update object.
+  // Keys are paths relative to rooms/{roomCode}/. DO NOT include meta/status.
+  // lobby.js adds meta/status='playing', meta/winner=null, meta/winReason=null.
+  generateState(players, meta) {},
+
+  // ── Lifecycle ───────────────────────────────────────────
+
+  // Called once by lobby.js after auth + ensureInRoom.
+  // Set up game state, attach header button listeners.
+  // DO NOT subscribe to meta or players here — lobby.js owns those.
+  init(roomCode, myUid) {},
+
+  // Called when meta.status changes to 'playing' or 'finished'.
+  // lobby.js has already switched the visible screen.
+  // You are responsible for rendering game-area and finished screens.
+  onStatusChange(status, meta) {},
+
+  // Called on every players snapshot (all statuses).
+  // Update local myRole / myTeam from the source of truth.
+  onPlayersUpdate(players, meta) {},
+
+  // Returns Firebase multi-path update to reset game state for Play Again.
+  // lobby.js adds meta/status='lobby', meta/winner=null, currentTurn=null, player roles reset.
+  // Return null to manage the finished screen entirely yourself.
+  getResetUpdate(players, meta) {},
+};
+```
 
 ---
 
@@ -51,108 +165,106 @@
 ```
 /rooms/{roomCode}/
   meta/
-    status:        "lobby" | "playing" | "finished"
-    hostUid:       string
-    createdAt:     timestamp
-    language:      "en" | "es"
-    timerSeconds:  number  (0 = off)
-    currentTurn:   "red" | "blue" | null
-    startingTeam:  "red" | "blue" | null
-    winner:        "red" | "blue" | null
-    winReason:     "allFound" | "assassin" | "timer" | null
-    timerEndsAt:   timestamp | null
+    game:        string          — game type slug ('codenames', …)
+    status:      "lobby" | "playing" | "finished"
+    hostUid:     string
+    createdAt:   timestamp
+    settings:    object          — game-specific settings blob
+    winner:      string | null
+    winReason:   string | null
+    currentTurn: string | null   — game-specific (team name, player uid, etc.)
+    timerEndsAt: timestamp | null
 
   players/{uid}/
-    name:      string
-    photoURL:  string
-    team:      "red" | "blue" | null
-    role:      "spymaster" | "operative"
-    online:    boolean
-    joinedAt:  timestamp
+    name, photoURL, team, role, online, joinedAt
 
-  board/
-    words:    [25 strings]         — word list for this game
-    revealed: [25 strings|null]    — null=hidden, "red"|"blue"|"bystander"|"assassin"
-
-  clue/
-    word:        string | null
-    number:      number | "∞" | null
-    guessesLeft: number            — decremented by spymaster after each correct guess
-    givenBy:     uid | null
-    at:          timestamp
-
-  scores/
-    red:  number   — remaining red agents (counts down to 0)
-    blue: number   — remaining blue agents
-
-  pendingGuess/                    — written by operative when they tap a card
-    idx:        number             — card index (0–24)
-    byUid:      uid
-    claimedBy:  uid | null         — set atomically by spymaster to prevent double-processing
-    at:         timestamp
-
-  clueHistory/{pushKey}/
-    word:   string
-    number: number | "∞"
-    team:   "red" | "blue"
-    at:     timestamp
-
-  private/
-    keyCard: [25 strings]          — "red"|"blue"|"bystander"|"assassin"
-                                   — readable ONLY by players with role=spymaster
+  [game-specific paths — each game owns these]:
+    board/...
+    scores/...
+    clue/...
+    pendingGuess/...
+    clueHistory/...
+    private/...    ← restricted by Firebase rules
 ```
 
 ---
 
-## Security Model
+## Adding a New Game (Step-by-Step)
 
-**keyCard is never sent to operative clients.**
+1. **Create the folder:** `games/{slug}/`
 
-Firebase rules restrict `/rooms/{roomCode}/private/keyCard` to players whose role
-in that room is `spymaster`. Operatives literally cannot read this path.
+2. **Write `game.html`** — copy `games/codenames/game.html`, change:
+   - `<title>` and `.logo` text
+   - CSS `<link>` to your game's stylesheet
+   - The `#game-area` section (game-specific board HTML)
+   - Keep everything else identical
 
-**Guess processing flow (spymaster-as-referee):**
+3. **Write `style.css`** — only game-specific styles. Import from `css/shared.css` (loaded via HTML).
 
-1. Operative taps a card → writes `pendingGuess: { idx, byUid, claimedBy: null }`
-2. Active team's spymaster client detects the new `pendingGuess` via Firebase listener
-3. Spymaster runs a Firebase **transaction** on `pendingGuess/claimedBy` — first one wins
-4. Winning spymaster uses their local `keyCard` to resolve the outcome
-5. Atomic `db.update()` writes: `board/revealed[idx]`, updated `scores`, `clue`, `meta`, clears `pendingGuess`
+4. **Write `game.js`** — implement `window.GAME` interface (8 methods).
+   The boot block at the bottom is always the same 5 lines:
+   ```js
+   onAuthReady(async user => {
+     if (!user) return;
+     const roomCode = getRoomCode();
+     if (!roomCode) { window.location.href = '/index.html'; return; }
+     $('header-avatar').src = user.photoURL || '';
+     $('header-room-code').textContent = roomCode;
+     await ensureInRoom(roomCode);
+     initLobby(roomCode, window.GAME);
+   });
+   ```
 
-This prevents the most common cheat (DevTools + Network tab to read card colors).
+5. **Register in `js/home.js`** — add one entry to `GAME_CONFIGS`:
+   ```js
+   yourslug: {
+     slug:            'yourslug',
+     name:            'Game Name',
+     icon:            '🎲',
+     description:     'One sentence description.',
+     players:         '2 – 6 players',
+     gameUrl:         '/games/yourslug/game.html',
+     settingsHtml:    `...`,           // HTML for create-room settings on index.html
+     collectSettings: () => ({ ... }) // reads the settingsHtml form values
+   }
+   ```
+
+6. **Firebase rules** — if your game stores secret data under `private/`, add a read rule:
+   ```json
+   "private": {
+     "yourSecret": {
+       ".read": "root.child('rooms').child($roomCode).child('players').child(auth.uid).child('role').val() === 'your-privileged-role'"
+     }
+   }
+   ```
+
+That's all. `lobby.js`, `auth.js`, `room.js`, and `ui.js` need zero changes.
 
 ---
 
-## Key Design Decisions
+## Prompt Template for Claude (Add New Game)
 
-| Decision | Rationale |
-|---|---|
-| Spymaster-as-referee | No Cloud Functions needed; spymaster is always in game |
-| Firebase transaction on `claimedBy` | Prevents two spymasters double-processing the same guess |
-| `pendingGuess` cleared atomically in the same `update()` | No intermediate states visible to clients |
-| `signInWithRedirect` on mobile, `signInWithPopup` on desktop | Popup blocked by some mobile browsers |
-| 16px font on inputs | Prevents iOS Safari auto-zoom on focus |
-| `aspect-ratio: 1.1/1` on cards | Consistent card shape across all screen widths |
-| `clamp()` for card font-size | Words always fit without overflow on any screen |
+```
+I want to add [GAME NAME] to the Indie Games library.
 
----
+Read CLAUDE.md for the full shared API. The files you need to write:
+  games/{slug}/game.html  — copy codenames shell, adapt #game-area
+  games/{slug}/game.js    — implement window.GAME interface (CLAUDE.md has the contract)
+  games/{slug}/style.css  — game-specific styles only
 
-## Known Limitations / TODO
+Also add one entry to GAME_CONFIGS in js/home.js.
 
-- No reconnection recovery if spymaster drops mid-guess (operative sees spinner indefinitely — workaround: reload)
-- Room auto-expiry not implemented (old rooms stay in DB forever — add Firebase cleanup function or TTL rule)
-- Custom word packs not yet supported
-- No integrated voice/video chat (use Discord/phone)
-- `timerEndsAt` uses client clock (good enough for casual play; can drift ~1s between clients)
+Game rules: [paste rules or link]
+
+Secret data (if any): [e.g. "player hands must be hidden"]
+Special mechanics: [e.g. "real-time bidding", "hidden roles", etc.]
+```
 
 ---
 
-## Insights from Existing Implementations
+## Codenames — Security Notes
 
-Informed by reviewing horsepaste, codenames.game, codenames.plus, and open-source repos:
-
-- **horsepaste** (most popular): sends full keyCard to all clients — cheatable via DevTools. We fixed this.
-- **codenames.plus**: no mobile support at all. We are mobile-first.
-- **codenames.game**: no onboarding. We include `rules.md` and inline hints.
-- Common missing feature: role-locked URLs / spymaster enforcement. We enforce via Firebase rules + transaction.
-- Common missing feature: turn timer. We include a configurable one.
+- `private/keyCard` is only readable by players with `role=spymaster` (Firebase rules).
+- Guess resolution: operative writes `pendingGuess`; spymaster claims it via a Firebase
+  **transaction** on `claimedBy` (prevents double-processing); resolves outcome atomically.
+- Operatives never receive keyCard data — their client simply cannot read that path.

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:czechgames.com)",
+      "WebFetch(domain:www.geekyhobbies.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.reddit.com)",
+      "WebFetch(domain:blog.czechgames.com)",
+      "Bash(cd:*)"
+    ]
+  }
+}

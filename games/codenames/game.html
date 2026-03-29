@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0d1b2a" />
+  <title>Código Secreto</title>
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <span class="logo">C<span>Ó</span>DIGO <span>SECRETO</span></span>
+    <button class="room-code-badge" id="copy-code-btn" title="Copy invite link">
+      <span id="header-room-code">????</span>
+      <span class="copy-icon">⎘</span>
+    </button>
+    <img class="user-avatar" id="header-avatar" src="" alt="avatar" />
+  </header>
+
+  <!-- lobby.js injects full lobby HTML here -->
+  <section id="lobby-mount" class="screen hidden"></section>
+
+  <!-- ── Game board (Codenames-specific) ── -->
+  <section id="game-area" class="screen hidden">
+    <div class="board-screen">
+
+      <div class="score-bar">
+        <div class="score-team">
+          <div class="score-dot red"></div>
+          <span class="score-count red" id="score-red">9</span>
+          <span style="font-size:12px;color:var(--text-muted)">left</span>
+        </div>
+        <div id="timer-display" class="timer-display ok hidden"></div>
+        <div class="score-team">
+          <span style="font-size:12px;color:var(--text-muted)">left</span>
+          <span class="score-count blue" id="score-blue">8</span>
+          <div class="score-dot blue"></div>
+        </div>
+      </div>
+
+      <div id="turn-bar" class="turn-bar turn-none">Waiting…</div>
+      <div id="clue-display" class="clue-display">
+        <span style="color:var(--text-muted);font-size:13px">No active clue</span>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="card-grid-wrap">
+          <div class="card-grid" id="card-grid"></div>
+        </div>
+
+        <div class="action-bar" id="action-bar">
+          <div id="pending-indicator" class="pending-indicator hidden">
+            <div class="spinner"></div><span>Processing guess…</span>
+          </div>
+          <button class="btn btn-ghost btn-full hidden" id="end-turn-btn">End Turn</button>
+          <div id="clue-form" class="clue-form hidden">
+            <div class="clue-input-wrap">
+              <input type="text" id="clue-word" class="clue-word-input"
+                placeholder="One word clue…" maxlength="30"
+                autocomplete="off" spellcheck="false" />
+            </div>
+            <select id="clue-num" class="clue-num-select">
+              <option>1</option><option>2</option><option>3</option>
+              <option>4</option><option>5</option><option>6</option>
+              <option>7</option><option>8</option><option>9</option>
+              <option value="0">0</option><option value="∞">∞</option>
+            </select>
+            <button class="btn btn-primary" id="submit-clue-btn">Give</button>
+          </div>
+          <p id="action-hint" class="action-hint"></p>
+        </div>
+
+        <div id="clue-history-wrap" class="clue-history hidden">
+          <h5>Clue history</h5>
+          <div id="clue-history-list" class="clue-history-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Finished ── -->
+  <section id="finished" class="screen hidden">
+    <div class="finished-body">
+      <div id="winner-banner" class="winner-banner">
+        <div class="trophy">🏆</div>
+        <div class="wins-text">Winner</div>
+        <div id="winner-name" class="team-name">—</div>
+        <div id="winner-reason" class="reason"></div>
+      </div>
+      <!-- lobby.js injects Play Again + Home buttons here -->
+      <div id="finished-actions" class="finished-actions"></div>
+      <!-- game.js injects mini board here -->
+      <div id="finished-extra"></div>
+    </div>
+  </section>
+
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="big-spinner"></div>
+    <p id="loading-msg">Connecting…</p>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/room.js"></script>
+  <script src="/js/lobby.js"></script>
+  <script src="wordlists.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

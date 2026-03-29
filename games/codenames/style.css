@@ -1,0 +1,261 @@
+/* =====================================================
+   CODENAMES-SPECIFIC STYLES
+   Extends css/shared.css. Only board, cards, and
+   Codenames UI elements live here.
+   ===================================================== */
+
+/* ===== Board layout ===== */
+.board-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== Score bar ===== */
+.score-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.score-team { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.score-dot  { width: 12px; height: 12px; border-radius: 50%; }
+.score-dot.red  { background: var(--red); }
+.score-dot.blue { background: var(--blue); }
+.score-count    { font-size: 22px; font-weight: 900; line-height: 1; }
+.score-count.red  { color: var(--red); }
+.score-count.blue { color: var(--blue); }
+
+/* ===== Turn bar ===== */
+.turn-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.3s;
+  border-bottom: 1px solid transparent;
+}
+.turn-bar.turn-red  { background: rgba(229,57,53,.15);  color: #ff7875; border-color: rgba(229,57,53,.2); }
+.turn-bar.turn-blue { background: rgba(30,136,229,.15); color: #69b5ff; border-color: rgba(30,136,229,.2); }
+.turn-bar.turn-none { background: var(--surface); color: var(--text-muted); border-color: var(--border); }
+
+/* ===== Clue display ===== */
+.clue-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  flex-wrap: wrap;
+  min-height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.clue-word { font-size: 18px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.clue-num  { font-size: 18px; font-weight: 900; opacity: 0.7; }
+.clue-left { font-size: 12px; color: var(--text-muted); background: var(--surface2); padding: 2px 8px; border-radius: 20px; }
+
+/* ===== Card grid ===== */
+.card-grid-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 5px 3px;
+  min-height: 54px;
+  aspect-ratio: 1.1 / 1;
+  font-size: clamp(8px, 2.1vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  word-break: break-word;
+  hyphens: auto;
+  cursor: default;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+  overflow: hidden;
+}
+.card.clickable { cursor: pointer; }
+.card.clickable:active { transform: scale(0.93); }
+
+/* Spymaster key overlays (unrevealed cards) */
+.card.key-red       { background: var(--red-dim);  border-color: var(--red-border);  color: #ffb3b0; }
+.card.key-blue      { background: var(--blue-dim); border-color: var(--blue-border); color: #90caf9; }
+.card.key-bystander { background: rgba(200,185,154,.15); border-color: rgba(200,185,154,.3); color: #c8b99a; }
+.card.key-assassin  { background: rgba(10,10,20,.7); border-color: #444; color: #666; }
+
+/* Revealed states */
+.card.revealed-red       { background: var(--red);       border-color: transparent; color: #fff; }
+.card.revealed-blue      { background: var(--blue);      border-color: transparent; color: #fff; }
+.card.revealed-bystander { background: var(--bystander); border-color: transparent; color: var(--bystander-text); }
+.card.revealed-assassin  { background: var(--assassin);  border-color: #333; color: var(--assassin-text); }
+
+/* Pending overlay */
+.card.pending::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  border-radius: 4px;
+}
+
+/* ===== Action bar ===== */
+.action-bar {
+  padding: 10px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.action-hint { text-align: center; font-size: 12px; color: var(--text-muted); padding: 6px; }
+
+/* Clue form */
+.clue-form { display: flex; gap: 8px; align-items: stretch; }
+.clue-input-wrap { flex: 1; }
+.clue-word-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 16px;
+  padding: 10px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  outline: none;
+}
+.clue-word-input:focus { border-color: var(--blue); }
+.clue-word-input::placeholder { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.clue-num-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 16px;
+  padding: 10px 8px;
+  font-weight: 700;
+  outline: none;
+  width: 60px;
+  text-align: center;
+}
+
+/* Timer */
+.timer-display { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; }
+.timer-display.urgent { color: var(--red); animation: pulse 1s infinite; }
+.timer-display.warn   { color: #f59e0b; }
+.timer-display.ok     { color: var(--text-muted); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* Pending indicator */
+.pending-indicator {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ===== Clue history ===== */
+.clue-history { padding: 0 16px 16px; }
+.clue-history h5 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); margin-bottom: 6px; }
+.clue-history-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.clue-history-item { background: var(--surface2); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; letter-spacing: .05em; }
+.clue-history-item.red  { border-left: 3px solid var(--red); }
+.clue-history-item.blue { border-left: 3px solid var(--blue); }
+
+/* ===== Finished screen ===== */
+.finished-body {
+  flex: 1;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.winner-banner {
+  width: 100%;
+  max-width: 400px;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.winner-banner.red  { background: rgba(229,57,53,.2);  border: 2px solid var(--red); }
+.winner-banner.blue { background: rgba(30,136,229,.2); border: 2px solid var(--blue); }
+.winner-banner .trophy    { font-size: 48px; }
+.winner-banner .wins-text { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.winner-banner .team-name { font-size: 32px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.winner-banner .team-name.red  { color: var(--red); }
+.winner-banner .team-name.blue { color: var(--blue); }
+.winner-banner .reason    { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.finished-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* Mini board */
+.mini-board { width: 100%; max-width: 400px; }
+.mini-board h4 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+.mini-card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.mini-card {
+  border-radius: 4px;
+  padding: 4px 2px;
+  min-height: 32px;
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: break-word;
+}
+.mini-card.red        { background: var(--red);       color: #fff; }
+.mini-card.blue       { background: var(--blue);      color: #fff; }
+.mini-card.bystander  { background: var(--bystander); color: var(--bystander-text); }
+.mini-card.assassin   { background: var(--assassin);  color: #555; }
+.mini-card.unrevealed { background: var(--surface2);  color: var(--text-muted); opacity: .5; }
+
+/* ===== Desktop ===== */
+@media (min-width: 640px) {
+  .card-grid-wrap { padding: 16px 24px; }
+  .card-grid      { gap: 8px; max-width: 560px; margin: 0 auto; }
+  .card           { font-size: clamp(10px, 1.6vw, 13px); min-height: 64px; border-radius: 8px; }
+  .score-bar, .action-bar, .turn-bar, .clue-display { padding: 10px 24px; }
+}
+@media (min-width: 960px) {
+  .board-screen { max-width: 720px; margin: 0 auto; width: 100%; }
+}
