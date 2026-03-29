@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableTop Studio — Company Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1410;
+    --cream: #f5f0e8;
+    --parchment: #ede6d3;
+    --gold: #c9963e;
+    --gold-light: #e8c87a;
+    --rust: #b84c2a;
+    --forest: #2d5a3d;
+    --slate: #3d4a5c;
+    --muted: #7a6e62;
+    --border: rgba(26,20,16,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* HEADER */
+  header {
+    padding: 60px 48px 40px;
+    border-bottom: 1.5px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 32px;
+    background: var(--parchment);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: '◈';
+    position: absolute;
+    right: -20px;
+    top: -40px;
+    font-size: 240px;
+    color: rgba(201,150,62,0.06);
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .company-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 5vw, 58px);
+    font-weight: 900;
+    line-height: 1.05;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--rust);
+  }
+
+  .header-meta {
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 2;
+  }
+
+  .subtitle {
+    margin-top: 16px;
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 580px;
+    font-weight: 300;
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  /* SECTION HEADERS */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  /* GAME CANDIDATES TABLE */
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 60px;
+  }
+
+  .game-card {
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .game-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(26,20,16,0.1);
+  }
+
+  .game-card .game-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .game-card .game-type {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .game-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    margin-top: 12px;
+    margin-right: 4px;
+  }
+
+  .badge-opportunity { background: rgba(45,90,61,0.12); color: var(--forest); border: 1px solid rgba(45,90,61,0.2); }
+  .badge-competition { background: rgba(184,76,42,0.1); color: var(--rust); border: 1px solid rgba(184,76,42,0.2); }
+  .badge-niche { background: rgba(201,150,62,0.12); color: #8a6420; border: 1px solid rgba(201,150,62,0.25); }
+
+  /* PIPELINE */
+  .pipeline {
+    margin-bottom: 60px;
+    position: relative;
+  }
+
+  .pipeline-track {
+    position: relative;
+    padding-left: 32px;
+  }
+
+  .pipeline-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 1.5px;
+    background: linear-gradient(to bottom, var(--gold), transparent);
+  }
+
+  .pipeline-phase {
+    margin-bottom: 2px;
+    animation: fadeSlide 0.4s ease both;
+  }
+
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .phase-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    user-select: none;
+  }
+
+  .phase-header:hover { background: #e8e0cc; }
+
+  .phase-number {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--gold);
+    width: 32px;
+    line-height: 1;
+  }
+
+  .phase-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 17px;
+  }
+
+  .phase-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+  }
+
+  .phase-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .phase-body {
+    border: 1px solid var(--border);
+    border-top: none;
+    padding: 0 22px;
+    background: white;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, padding 0.2s;
+  }
+
+  .phase-body.open {
+    max-height: 600px;
+    padding: 20px 22px;
+  }
+
+  .phase-body ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 16px;
+  }
+
+  .phase-body ul li {
+    font-size: 13.5px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(26,20,16,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--slate);
+  }
+
+  .phase-body ul li::before {
+    content: '→';
+    color: var(--gold);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .phase-body .agents-note {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(201,150,62,0.08);
+    border-left: 3px solid var(--gold);
+    font-size: 12.5px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* AGENTS SECTION */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 60px;
+  }
+
+  .agent-card {
+    border: 1px solid var(--border);
+    padding: 22px;
+    background: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .agent-research::before { background: var(--forest); }
+  .agent-design::before { background: var(--gold); }
+  .agent-dev::before { background: var(--slate); }
+  .agent-qa::before { background: var(--rust); }
+  .agent-ops::before { background: #6b4c8a; }
+  .agent-growth::before { background: #2a7a8a; }
+
+  .agent-icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .agent-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .agent-role {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .agent-card p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.55;
+  }
+
+  .agent-tasks {
+    list-style: none;
+  }
+
+  .agent-tasks li {
+    font-size: 12.5px;
+    padding: 4px 0;
+    color: var(--slate);
+    display: flex;
+    gap: 6px;
+  }
+
+  .agent-tasks li::before {
+    content: '·';
+    color: var(--gold);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* MONETIZATION */
+  .mono-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 60px;
+    font-size: 13.5px;
+  }
+
+  .mono-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    text-align: left;
+    background: var(--parchment);
+    border-bottom: 2px solid var(--border);
+    color: var(--muted);
+  }
+
+  .mono-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .mono-table tr:hover td { background: rgba(245,240,232,0.5); }
+
+  .tier-1 td:first-child { border-left: 3px solid var(--forest); }
+  .tier-2 td:first-child { border-left: 3px solid var(--gold); }
+  .tier-3 td:first-child { border-left: 3px solid var(--rust); }
+
+  /* TECH STACK */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 60px;
+  }
+
+  .stack-item {
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    padding: 14px 18px;
+  }
+
+  .stack-layer {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .stack-name {
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .stack-why {
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  /* TIMELINE */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    margin-bottom: 60px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .timeline-col {
+    padding: 20px 16px;
+    border-right: 1px solid var(--border);
+  }
+
+  .timeline-col:last-child { border-right: none; }
+
+  .timeline-month {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .timeline-item {
+    font-size: 11.5px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    color: white;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .t-research { background: var(--forest); }
+  .t-design { background: #8a6420; }
+  .t-dev { background: var(--slate); }
+  .t-qa { background: #7a3820; }
+  .t-launch { background: var(--rust); }
+
+  /* FOOTER */
+  footer {
+    padding: 32px 48px;
+    border-top: 1.5px solid var(--border);
+    background: var(--parchment);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* COLLAPSE TOGGLE */
+  .toggle-icon {
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    color: var(--muted);
+    transition: transform 0.3s;
+    line-height: 1;
+  }
+
+  .phase-header.open .toggle-icon { transform: rotate(45deg); }
+
+  /* DIVIDER */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 48px 0 32px;
+    opacity: 0.4;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--ink);
+  }
+
+  .section-divider span {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 32px 20px 28px; grid-template-columns: 1fr; }
+    main { padding: 32px 16px 60px; }
+    .timeline { grid-template-columns: 1fr 1fr; }
+    footer { flex-direction: column; gap: 8px; text-align: center; }
+    .header-meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="company-tag">Company Master Plan — v1.0</div>
+    <h1>Table<em>Top</em><br>Studio</h1>
+    <p class="subtitle">A pipeline-driven company for bringing underdigitized board games to the web — with a focus on the Spanish and European market.</p>
+  </div>
+  <div class="header-meta">
+    <div>Focus Market</div>
+    <div>Spain / Europe</div>
+    <div style="margin-top:8px">Product Type</div>
+    <div>Web App (PWA)</div>
+    <div style="margin-top:8px">Model</div>
+    <div>Freemium + B2C</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- GAME CANDIDATES -->
+  <div class="section-label">Step 0 — Game Selection</div>
+  <h2>Target Games: Not Popular Yet in Spain</h2>
+
+  <div class="games-grid">
+
+    <div class="game-card">
+      <div class="game-name">Código Secreto</div>
+      <div class="game-type">Social Deduction · 2–8 players</div>
+      <p>The physical version is known in Spain but has no dominant web implementation in Spanish. Pure word game, low legal complexity, huge social appeal.</p>
+      <span class="badge badge-opportunity">★ Priority 1</span>
+      <span class="badge badge-opportunity">Low complexity</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Sushi Go!</div>
+      <div class="game-type">Card Drafting · 2–5 players</div>
+      <p>Barely known in Spain. Extremely teachable, fast rounds (15 min), works perfectly async online. BGA has it but no Spanish-first experience.</p>
+      <span class="badge badge-opportunity">★ Priority 1</span>
+      <span class="badge badge-niche">Underserved</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Hanabi</div>
+      <div class="game-type">Cooperative · 2–5 players</div>
+      <p>Almost unknown in Spain. Unique mechanic (you can't see your own cards). Perfect for web — the limitation is a feature online. Strong virality potential.</p>
+      <span class="badge badge-opportunity">★ Priority 1</span>
+      <span class="badge badge-niche">Hidden gem</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Just One</div>
+      <div class="game-type">Party / Cooperative · 3–7 players</div>
+      <p>Spiel des Jahres winner. Cooperative word game where duplicate answers cancel out. No strong Spanish web version. High accessibility for non-gamers.</p>
+      <span class="badge badge-opportunity">Priority 2</span>
+      <span class="badge badge-niche">Mass market</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Sea Salt & Paper</div>
+      <div class="game-type">Card Game · 2–4 players</div>
+      <p>Rising star in Europe, very visual, fast (20 min). Perfect mobile/web translation. Not yet digitized in Spanish. Recent enough to be trending.</p>
+      <span class="badge badge-opportunity">Priority 2</span>
+      <span class="badge badge-opportunity">Trending</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Skull</div>
+      <div class="game-type">Bluffing · 2–6 players</div>
+      <p>The purest bluffing game. 6 pieces per player, zero luck claims. Social dynamics make it addictive. Almost zero digital presence in Spain.</p>
+      <span class="badge badge-niche">Niche but sticky</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Kingdomino</div>
+      <div class="game-type">Tile Placement · 2–4 players</div>
+      <p>Great family gateway game. Spiel des Jahres 2017. Visual and easy to grasp. Its tile placement mechanic translates beautifully to web interfaces.</p>
+      <span class="badge badge-opportunity">Priority 2</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Love Letter</div>
+      <div class="game-type">Deduction / Elimination · 2–6 players</div>
+      <p>Only 16 cards. Extremely fast (5 min/round). Perfect for mobile async play. Classic bluffing with a tiny rules footprint. Very implementable.</p>
+      <span class="badge badge-opportunity">Priority 3</span>
+      <span class="badge badge-niche">Quick win</span>
+    </div>
+
+    <div class="game-card">
+      <div class="game-name">Coup</div>
+      <div class="game-type">Social Deduction · 2–6 players</div>
+      <p>Hidden identity, bluffing, and elimination. Hugely popular in English-speaking markets. Almost untouched in the Spanish web market. Very fast to implement.</p>
+      <span class="badge badge-competition">Some BGA presence</span>
+      <span class="badge badge-opportunity">Gap in Spanish</span>
+    </div>
+
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="section-label">The Pipeline</div>
+  <h2>Phase-by-Phase Process (Per Game)</h2>
+
+  <div class="pipeline">
+    <div class="pipeline-track" id="pipelineTrack">
+
+      <!-- PHASE 1 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">01</div>
+          <div>
+            <div class="phase-title">Game Research & Viability</div>
+            <div class="phase-subtitle">Market fit · Legal analysis · Complexity scoring</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Research Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>BGG rating + review mining for Spain/Europe sentiment</li>
+            <li>Check if game has existing digital version (BGA, Steam, App Store)</li>
+            <li>Evaluate digital translation difficulty (tokens, maps, hidden info)</li>
+            <li>Check license/IP status — public domain vs publisher deal needed</li>
+            <li>Estimate player count, session length, async compatibility</li>
+            <li>Spanish community research (Reddit, Discord, forums)</li>
+            <li>Score game on: viral potential, complexity, licensing risk</li>
+            <li>Competitive gap analysis vs BGA and existing apps</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: ResearchBot — scrapes BGG, App Store reviews, Google Trends (Spain), and outputs a structured viability report.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 2 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">02</div>
+          <div>
+            <div class="phase-title">Licensing & Legal Clearance</div>
+            <div class="phase-subtitle">Publisher contact · IP strategy · Terms of use</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Legal/Ops Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Contact publisher for digital licensing (e.g. Repos Production for Just One)</li>
+            <li>Draft non-commercial fan version if publisher permits free play</li>
+            <li>Revenue-share agreement drafting for commercial games</li>
+            <li>GDPR-compliant user data policy</li>
+            <li>Terms of Service and privacy policy per game/region</li>
+            <li>Trademark check for game name and UI elements</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: LegalDraftBot — templates licensing emails, tracks publisher response status, flags games cleared for development.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 3 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">03</div>
+          <div>
+            <div class="phase-title">Game Design Document (GDD)</div>
+            <div class="phase-subtitle">Rules engine · State machine · Edge cases</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Design Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Full rules formalization as state machine (JSON schema)</li>
+            <li>Player state, game state, action definitions</li>
+            <li>Edge case catalogue (ties, disconnections, illegal moves)</li>
+            <li>Async turn model design (push notifications, turn timers)</li>
+            <li>AI opponent design if applicable (difficulty levels)</li>
+            <li>Spectator mode rules</li>
+            <li>Tutorial flow design (interactive first-time UX)</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: GDDBot — takes physical rulebook as input, outputs structured GDD with state machine, action list, and edge case log.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 4 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">04</div>
+          <div>
+            <div class="phase-title">UI/UX Design System</div>
+            <div class="phase-subtitle">Unified brand · Per-game theming · Accessibility</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Design Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Global design system: typography, tokens, spacing, shadows</li>
+            <li>Shared component library: buttons, modals, player panels, chat</li>
+            <li>Per-game theme layer (Sushi Go warm/playful vs Hanabi dark/elegant)</li>
+            <li>Responsive layout for mobile, tablet, desktop</li>
+            <li>Accessibility audit (WCAG AA): contrast, keyboard nav, screen readers</li>
+            <li>Animation system: game events, turn transitions, win animations</li>
+            <li>Dark mode support per game</li>
+            <li>Figma/design token pipeline to code</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: DesignBot — generates Tailwind design tokens, component stubs, and theme variants from a brand brief.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 5 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">05</div>
+          <div>
+            <div class="phase-title">Software Architecture</div>
+            <div class="phase-subtitle">Backend · Real-time · Database · Infra</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Dev Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Monorepo structure: shared game engine + per-game frontend</li>
+            <li>Game engine as pure TypeScript logic (no side effects, fully testable)</li>
+            <li>WebSocket server for real-time game state sync</li>
+            <li>REST API for auth, lobbies, history, leaderboards</li>
+            <li>PostgreSQL: users, games, sessions, events log</li>
+            <li>Redis: ephemeral game state, presence, matchmaking queue</li>
+            <li>Auth: Supabase or Auth.js (email + Google + guest mode)</li>
+            <li>Deployment: Vercel (frontend) + Railway/Fly.io (backend)</li>
+            <li>CDN for static assets, CI/CD via GitHub Actions</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: ArchBot — scaffolds new game repos from GDD, wires game engine to API, generates boilerplate tests.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 6 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">06</div>
+          <div>
+            <div class="phase-title">Implementation</div>
+            <div class="phase-subtitle">Game engine · Frontend · Multiplayer · AI</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Dev Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Pure game engine: all rules, scoring, win conditions (TDD)</li>
+            <li>React/Next.js frontend per game with shared component library</li>
+            <li>WebSocket integration: optimistic UI updates + server reconciliation</li>
+            <li>Lobby system: public/private rooms, invite links, async mode</li>
+            <li>Tutorial mode: step-by-step interactive walkthrough</li>
+            <li>Basic AI opponent (rule-based first, MCTS optionally later)</li>
+            <li>Spanish + English i18n from day one</li>
+            <li>PWA manifest: installable on mobile, offline lobby browsing</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: DevBot — writes game engine from GDD spec, flags ambiguous rules, runs tests automatically.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 7 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">07</div>
+          <div>
+            <div class="phase-title">QA & Playtesting</div>
+            <div class="phase-subtitle">Automated tests · Human playtest · Balance</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">QA Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Unit tests: 100% coverage on game engine logic</li>
+            <li>Property-based tests: fuzzing against random game states</li>
+            <li>E2E tests: Playwright scripts simulating full multiplayer games</li>
+            <li>AI vs AI simulations: run 10,000 games, check score distributions</li>
+            <li>Human playtest sessions: 5+ groups, 3+ sessions each</li>
+            <li>Session recording analysis: where do players get confused?</li>
+            <li>Performance testing: 100+ concurrent games on staging</li>
+            <li>Mobile UX audit: touch targets, scroll behavior, orientation</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: QABot — generates test suites from GDD, runs AI simulations, reports broken rules + performance bottlenecks.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 8 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">08</div>
+          <div>
+            <div class="phase-title">Monetization Integration</div>
+            <div class="phase-subtitle">Freemium · Subscriptions · Cosmetics</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Growth Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Stripe integration for subscription and one-time payments</li>
+            <li>Free tier gate design (e.g. 3 async games/day, limited cosmetics)</li>
+            <li>Premium tier: unlimited async games, all cosmetics, no ads</li>
+            <li>Cosmetics shop: card backs, player avatars, table themes</li>
+            <li>Referral system: invite friend → unlock cosmetic</li>
+            <li>A/B test paywall placement and premium messaging</li>
+            <li>Publisher revenue share tracking dashboard</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: MonetizationBot — tracks conversion funnel, suggests gate adjustments based on drop-off data.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 9 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">09</div>
+          <div>
+            <div class="phase-title">Launch & Community</div>
+            <div class="phase-subtitle">SEO · Social · Influencers · Spain-first</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Growth Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>Spanish board game community outreach (Reddit r/juegosdemesa, Discord servers)</li>
+            <li>Spanish gaming influencers and streamers (Twitch/YouTube)</li>
+            <li>Product Hunt / BoardGameGeek listing</li>
+            <li>SEO: Spanish-language landing pages per game</li>
+            <li>Email waitlist → launch announcement sequence</li>
+            <li>Press kit and coverage in Spanish gaming media</li>
+            <li>Launch event: online tournament with prize cosmetics</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: GrowthBot — monitors community mentions, tracks keyword rankings, manages email campaigns.</div>
+        </div>
+      </div>
+
+      <!-- PHASE 10 -->
+      <div class="pipeline-phase">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-number">10</div>
+          <div>
+            <div class="phase-title">Operations & Iteration</div>
+            <div class="phase-subtitle">Analytics · Feedback · Roadmap updates</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="phase-tag">Ops Agent</div>
+            <div class="toggle-icon">+</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ul>
+            <li>PostHog or Plausible analytics: session funnels, feature flags</li>
+            <li>Error monitoring: Sentry with game-context tagging</li>
+            <li>Weekly metrics report: DAU, conversion rate, churn, game popularity</li>
+            <li>User feedback form in-game → tagged Notion/Linear backlog</li>
+            <li>Quarterly game drop: new game added every 3 months</li>
+            <li>Balance patches based on simulation data</li>
+            <li>Community voting on next game to implement</li>
+          </ul>
+          <div class="agents-note">🤖 Agent: OpsBot — generates weekly health reports, triages feedback into priority buckets, flags anomalies in game data.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MONETIZATION TABLE -->
+  <div class="section-label">Business Model</div>
+  <h2>Monetization Strategy</h2>
+
+  <table class="mono-table">
+    <thead>
+      <tr>
+        <th>Tier</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th>What You Get</th>
+        <th>Rationale</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="tier-1">
+        <td>Free</td>
+        <td><strong>Explorer</strong></td>
+        <td>€0</td>
+        <td>All games playable, 3 async games/day, basic avatars, Spanish + English</td>
+        <td>Maximize user base. Virality requires no barrier to invite friends.</td>
+      </tr>
+      <tr class="tier-2">
+        <td>Paid</td>
+        <td><strong>Aficionado</strong></td>
+        <td>€4.99/mo or €39/yr</td>
+        <td>Unlimited async games, all cosmetics, no ads, early access to new games</td>
+        <td>Core monetization. Low enough to not block casual players.</td>
+      </tr>
+      <tr class="tier-3">
+        <td>One-time</td>
+        <td><strong>Cosmetics</strong></td>
+        <td>€1.49–€3.99</td>
+        <td>Card backs, table themes, animated avatars, seasonal packs</td>
+        <td>Non-pay-to-win. Spanish cultural themes (La Alhambra, Sagrada Familia…)</td>
+      </tr>
+      <tr class="tier-1">
+        <td>B2B</td>
+        <td><strong>Grupo / Team</strong></td>
+        <td>€9.99/mo per team</td>
+        <td>Private lobbies for companies, schools, or families (5–20 users)</td>
+        <td>Team-building and education market in Spain is underserved.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- AGENT PIPELINE -->
+  <div class="section-label">Agent Architecture</div>
+  <h2>AI Agent Pipeline</h2>
+
+  <div class="agents-grid">
+
+    <div class="agent-card agent-research">
+      <div class="agent-icon">🔎</div>
+      <div class="agent-name">ResearchBot</div>
+      <div class="agent-role">Game Intelligence Agent</div>
+      <p>Monitors BGG, App Store reviews, Google Trends Spain, and tabletop forums to produce structured game viability reports.</p>
+      <ul class="agent-tasks">
+        <li>Weekly scan of trending games in Europe</li>
+        <li>Scores new candidates on 6 criteria</li>
+        <li>Alerts team when a game crosses viability threshold</li>
+        <li>Tracks competitor (BGA, Steam) new game launches</li>
+      </ul>
+    </div>
+
+    <div class="agent-card agent-design">
+      <div class="agent-icon">📐</div>
+      <div class="agent-name">GDDBot</div>
+      <div class="agent-role">Rules Formalization Agent</div>
+      <p>Takes physical rulebook PDFs or text as input and produces a structured Game Design Document with state machine, action schema, and edge case catalogue.</p>
+      <ul class="agent-tasks">
+        <li>Parses rules into JSON state machine</li>
+        <li>Flags ambiguous or missing rules</li>
+        <li>Generates test case seeds from edge cases</li>
+        <li>Outputs GDD Markdown for developer handoff</li>
+      </ul>
+    </div>
+
+    <div class="agent-card agent-dev">
+      <div class="agent-icon">⚙️</div>
+      <div class="agent-name">ArchBot</div>
+      <div class="agent-role">Game Scaffolding Agent</div>
+      <p>Scaffolds a new game repository from a GDD. Creates the game engine skeleton, API routes, WebSocket events, and frontend component stubs.</p>
+      <ul class="agent-tasks">
+        <li>Generates typed game engine from GDD schema</li>
+        <li>Wires to shared multiplayer infrastructure</li>
+        <li>Bootstraps per-game design token theme</li>
+        <li>Creates CI/CD pipeline config for new game</li>
+      </ul>
+    </div>
+
+    <div class="agent-card agent-qa">
+      <div class="agent-icon">🧪</div>
+      <div class="agent-name">QABot</div>
+      <div class="agent-role">Testing & Simulation Agent</div>
+      <p>Generates unit and E2E tests from GDD, runs AI-vs-AI game simulations, and flags logic bugs or score imbalances before human playtesting.</p>
+      <ul class="agent-tasks">
+        <li>Auto-generates test suites from GDD actions</li>
+        <li>Runs 10k AI simulation games per build</li>
+        <li>Detects score distribution anomalies</li>
+        <li>Flags broken game states in CI pipeline</li>
+      </ul>
+    </div>
+
+    <div class="agent-card agent-ops">
+      <div class="agent-icon">📊</div>
+      <div class="agent-name">OpsBot</div>
+      <div class="agent-role">Operations & Analytics Agent</div>
+      <p>Generates weekly health reports, monitors error rates, triages user feedback into actionable backlog items, and detects anomalies in production data.</p>
+      <ul class="agent-tasks">
+        <li>Weekly KPI digest (DAU, conversion, churn)</li>
+        <li>Sentry error triage and prioritization</li>
+        <li>Feedback categorization → Linear issues</li>
+        <li>Revenue report with publisher share breakdown</li>
+      </ul>
+    </div>
+
+    <div class="agent-card agent-growth">
+      <div class="agent-icon">📣</div>
+      <div class="agent-name">GrowthBot</div>
+      <div class="agent-role">Marketing & Community Agent</div>
+      <p>Monitors Spanish-language board game communities, tracks keyword rankings, manages email sequences, and identifies influencer opportunities.</p>
+      <ul class="agent-tasks">
+        <li>Monitors r/juegosdemesa and Discord servers</li>
+        <li>Tracks SEO rankings for target keywords</li>
+        <li>Drafts community announcements and patch notes</li>
+        <li>Manages referral and waitlist email flows</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section-label">Technology</div>
+  <h2>Recommended Tech Stack</h2>
+
+  <div class="stack-grid">
+    <div class="stack-item">
+      <div class="stack-layer">Frontend</div>
+      <div class="stack-name">Next.js + React</div>
+      <div class="stack-why">SSR for SEO, App Router, per-game dynamic routes</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Game Engine</div>
+      <div class="stack-name">Pure TypeScript</div>
+      <div class="stack-why">Runs server-side and client-side; fully testable</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Real-time</div>
+      <div class="stack-name">Partykit / Socket.io</div>
+      <div class="stack-why">WebSockets for live play; Partykit simplifies edge rooms</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Database</div>
+      <div class="stack-name">Supabase (Postgres)</div>
+      <div class="stack-why">Auth included, real-time subscriptions, generous free tier</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Styling</div>
+      <div class="stack-name">Tailwind + CSS Vars</div>
+      <div class="stack-why">Global tokens + per-game theme overrides</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Payments</div>
+      <div class="stack-name">Stripe</div>
+      <div class="stack-why">Subscriptions, one-time purchases, EU tax handling</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Analytics</div>
+      <div class="stack-name">PostHog</div>
+      <div class="stack-why">GDPR-compliant, funnel analysis, feature flags, session replay</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Deployment</div>
+      <div class="stack-name">Vercel + Fly.io</div>
+      <div class="stack-why">Vercel for frontend CDN; Fly.io for WebSocket server regions</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Agents</div>
+      <div class="stack-name">Claude API</div>
+      <div class="stack-why">Agent pipelines: GDD parsing, QA generation, growth automation</div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="section-label">Roadmap</div>
+  <h2>6-Month Launch Timeline</h2>
+
+  <div class="timeline">
+    <div class="timeline-col">
+      <div class="timeline-month">Month 1</div>
+      <div class="timeline-item t-research">Game selection + viability</div>
+      <div class="timeline-item t-research">License outreach</div>
+      <div class="timeline-item t-design">Design system v1</div>
+    </div>
+    <div class="timeline-col">
+      <div class="timeline-month">Month 2</div>
+      <div class="timeline-item t-design">GDD: Código Secreto</div>
+      <div class="timeline-item t-design">GDD: Sushi Go</div>
+      <div class="timeline-item t-dev">Architecture setup</div>
+    </div>
+    <div class="timeline-col">
+      <div class="timeline-month">Month 3</div>
+      <div class="timeline-item t-dev">Game 1 engine dev</div>
+      <div class="timeline-item t-dev">Lobby + auth system</div>
+      <div class="timeline-item t-qa">QABot scaffolding</div>
+    </div>
+    <div class="timeline-col">
+      <div class="timeline-month">Month 4</div>
+      <div class="timeline-item t-dev">Game 2 engine dev</div>
+      <div class="timeline-item t-qa">Playtesting rounds</div>
+      <div class="timeline-item t-dev">Monetization layer</div>
+    </div>
+    <div class="timeline-col">
+      <div class="timeline-month">Month 5</div>
+      <div class="timeline-item t-qa">Full QA + E2E tests</div>
+      <div class="timeline-item t-launch">Beta (community)</div>
+      <div class="timeline-item t-design">Cosmetics shop v1</div>
+    </div>
+    <div class="timeline-col">
+      <div class="timeline-month">Month 6</div>
+      <div class="timeline-item t-launch">Public launch 🚀</div>
+      <div class="timeline-item t-launch">Game 3 starts</div>
+      <div class="timeline-item t-launch">Press & community</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div>TableTop Studio — Master Plan v1.0</div>
+  <div>Pipeline: Research → Legal → GDD → Design → Arch → Dev → QA → Monetize → Launch → Ops</div>
+  <div>Spain · Europe · 2026</div>
+</footer>
+
+<script>
+  function togglePhase(header) {
+    const body = header.nextElementSibling;
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open');
+    header.classList.toggle('open');
+  }
+
+  // Open first phase by default
+  document.querySelector('.phase-header').click();
+</script>
+
+</body>
+</html>
