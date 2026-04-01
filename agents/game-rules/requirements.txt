@@ -1,3 +1,4 @@
-requests
+browser-use
+playwright
+langchain-openai
 python-dotenv
-beautifulsoup4
