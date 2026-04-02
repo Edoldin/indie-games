@@ -1,12 +1,15 @@
 {
   "name": "indie-games",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test":      "node --test tests/utils.test.js tests/ui.test.js",
+    "test": "node --test tests/utils.test.js tests/ui.test.js",
     "translate": "node scripts/translate.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0"
+    "@anthropic-ai/sdk": "^0.39.0",
+    "firebase-admin": "^13.7.0"
   }
 }

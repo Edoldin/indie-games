@@ -1,0 +1,62 @@
+{
+  "codenames": {
+    "slug": "codenames",
+    "status": "live",
+    "name": "Código Secreto",
+    "icon": "🕵️",
+    "description": "Give one-word clues to lead your team to their secret agents.",
+    "players": "2 – 8 players",
+    "gameUrl": "/games/codenames/game.html",
+    "settingsHtml": "<label for=\"cn-lang\" class=\"home-select-label\">Language</label><select id=\"cn-lang\" class=\"form-select form-select-sm home-select\"><option value=\"en\">English</option><option value=\"es\">Español</option></select><label for=\"cn-timer\" class=\"home-select-label\">Timer</label><select id=\"cn-timer\" class=\"form-select form-select-sm home-select\"><option value=\"0\">Off</option><option value=\"60\">60 s</option><option value=\"90\" selected>90 s</option><option value=\"120\">120 s</option></select>"
+  },
+  "werewolves": {
+    "slug": "werewolves",
+    "status": "live",
+    "name": "Werewolves",
+    "icon": "🐺",
+    "description": "Hidden roles, night kills, and village votes. Can the villagers root out the werewolves?",
+    "players": "4 – 12 players",
+    "gameUrl": "/games/werewolves/game.html",
+    "settingsHtml": ""
+  },
+  "wavelength": {
+    "slug": "wavelength",
+    "status": "coming-soon",
+    "name": "Wavelength",
+    "icon": "🌊",
+    "description": "Guess where a concept lands on a hidden spectrum. One player knows the target, the rest must tune in.",
+    "players": "2 – 12 players"
+  },
+  "dixit": {
+    "slug": "dixit",
+    "status": "coming-soon",
+    "name": "Dixit",
+    "icon": "🃏",
+    "description": "Tell a story about a card so some — but not all — players can guess which one it is.",
+    "players": "3 – 6 players"
+  },
+  "taboo": {
+    "slug": "taboo",
+    "status": "coming-soon",
+    "name": "Taboo",
+    "icon": "🚫",
+    "description": "Describe words to your team without saying the obvious clues. Speed counts.",
+    "players": "4 – 10 players"
+  },
+  "coup": {
+    "slug": "coup",
+    "status": "coming-soon",
+    "name": "Coup",
+    "icon": "👑",
+    "description": "Bluff, bribe, and manipulate your way to power. Eliminate rivals and survive the intrigue.",
+    "players": "2 – 6 players"
+  },
+  "mascarade": {
+    "slug": "mascarade",
+    "status": "coming-soon",
+    "name": "Mascarade",
+    "icon": "🎭",
+    "description": "Everyone has a secret role. Swap, bluff, and deduce who has what in this hidden role game.",
+    "players": "3 – 13 players"
+  }
+}

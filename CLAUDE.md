@@ -36,13 +36,13 @@
 │       ├── game.html           # Shell: header + #lobby-mount + #game-area + #finished
 │       ├── game.js             # Codenames GAME interface implementation
 │       ├── style.css           # Codenames-only styles (board, cards, score bar…)
-│       └── wordlists.js        # WORDS_EN + WORDS_ES (400 words each)
+│       ├── wordlists.js        # WORDS_EN + WORDS_ES (400 words each)
+│       └── rules.md            # Codenames game rules reference
 ├── database.rules.json         # Firebase security rules
 ├── netlify.toml
 ├── .gitignore
 ├── CLAUDE.md                   # This file
-├── PLAYBOOK.md                 # Repeatable process for adding new games
-└── rules.md                    # Codenames game rules reference
+└── PLAYBOOK.md                 # Repeatable process for adding new games
 ```
 
 ---
@@ -220,7 +220,19 @@ window.GAME = {
    });
    ```
 
-5. **Register in `js/home.js`** — add one entry to `GAME_CONFIGS`:
+5. **Add game config to Firebase** — navigate to Firebase Console → Realtime Database → `/gameConfigs/{slug}` and add the JSON configuration (see sample in `game-configs.json`). For "coming-soon" games, omit `gameUrl` and `settingsHtml`.
+
+   Or run: `node scripts/upload-game-configs.js` (see Script Setup below).
+
+6. **Add settings collector to `js/home.js`** — if your game has settings, add to `SETTINGS_COLLECTORS` (line ~220):
+   ```js
+   yourslug: () => ({
+     settingName: document.getElementById('your-input-id')?.value
+   })
+   ```
+   For games with no settings, no entry is needed (defaults to `{}`).
+
+7. **Firebase rules** — if your game stores secret data under `private/`, add a read rule:
    ```js
    yourslug: {
      slug:            'yourslug',
@@ -265,6 +277,101 @@ Game rules: [paste rules or link]
 Secret data (if any): [e.g. "player hands must be hidden"]
 Special mechanics: [e.g. "real-time bidding", "hidden roles", etc.]
 ```
+
+---
+
+## Firebase Admin Script Setup
+
+To upload game configurations to Firebase RTDB, use the included upload script with backend authentication:
+
+### Setup (First Time Only)
+
+1. **Install Firebase Admin SDK:**
+   ```bash
+   npm install firebase-admin
+   ```
+
+2. **Generate service account key:**
+   - Firebase Console → Project Settings → Service accounts
+   - Click "Generate new private key"
+   - Save as `serviceAccountKey.json` in project root
+
+3. **Verify game-configs.json** exists in project root with your game configurations
+
+### Running the Script
+
+```bash
+node scripts/upload-game-configs.js
+```
+
+This will:
+- Read configurations from `game-configs.json`
+- Validate the data structure
+- Upload to `/gameConfigs` in Firebase RTDB
+- Confirm before overwriting existing data
+
+### For Other Agents
+
+Any agent or tool that needs to update game configs can use the same approach:
+1. Use Firebase Admin SDK with service account authentication
+2. Target the `/gameConfigs` path in RTDB
+3. Include proper validation before uploading
+
+The service account key provides backend authentication without requiring interactive user login.
+
+---
+
+## Firebase Admin Scripts Setup
+
+Two scripts are available for managing Firebase data:
+
+### 1. Upload Game Configs
+Deploy game configurations from `game-configs.json` to RTDB:
+
+```bash
+node scripts/upload-game-configs.js
+```
+
+**Prerequisites:**
+- npm install firebase-admin
+- Service account key in project root (see below)
+- game-configs.json in project root
+
+### 2. Deploy Security Rules
+Deploy security rules from `database.rules.json` to Firebase:
+
+```bash
+node scripts/deploy-rules.js
+```
+
+**Prerequisites:**
+- npm install firebase-admin
+- Service account key in project root (see below)
+- database.rules.json in project root
+
+### Service Account Setup
+
+Both scripts use the same authentication method:
+
+1. **Generate service account key:**
+   - Go to Firebase Console → Project Settings → Service accounts
+   - Click "Generate new private key"
+   - Save the JSON file in project root as:
+     - `serviceAccountKey.json` (recommended), OR
+     - `indie-games-fdf3b-firebase-adminsdk-fbsvc-5925adb236.json` (auto-detected)
+
+2. **Install dependencies:**
+   ```bash
+   npm install firebase-admin
+   ```
+
+### For Other Agents
+
+These scripts provide backend authentication using service account keys, enabling automated deployment without interactive login. Agents can:
+
+1. Use the same service account key file
+2. Call either script programmatically or via CLI
+3. Leverage the same validation and error handling
 
 ---
 
