@@ -6,6 +6,8 @@ firebase-debug.log
 # Secrets
 .env
 .env.local
+serviceAccountKey.json
+indie-games-fdf3b-firebase-adminsdk-fbsvc-5925adb236.json
 
 # Editor
 .vscode/
